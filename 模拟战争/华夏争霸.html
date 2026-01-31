@@ -1,0 +1,2141 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>华夏争霸：帝国洪流 (真实战争版)</title>
+  <style>
+    :root {
+      --bg-color: #121212;
+      --panel-bg: #1e1e1e;
+      --text-color: #ccc;
+      --accent-color: #ffd700;
+      --border-color: #333;
+      --danger-color: #ef5350;
+      --success-color: #66bb6a;
+      --info-color: #29b6f6;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    #game-container {
+      flex: 1;
+      display: flex;
+      position: relative;
+      background-color: #080808;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* 左侧信息栏 */
+    #left-panel {
+      width: 25%;
+      min-width: 240px;
+      max-width: 320px;
+      background-color: var(--panel-bg);
+      display: flex;
+      flex-direction: column;
+      padding: 15px;
+      box-sizing: border-box;
+      border-right: 1px solid var(--border-color);
+      z-index: 20;
+    }
+
+    /* 中间游戏区域 */
+    #center-stage {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      background-color: #080808;
+      overflow: hidden;
+      cursor: crosshair;
+      min-height: 0;
+    }
+
+    /* 右侧日志栏 */
+    #right-panel {
+      width: 25%;
+      min-width: 240px;
+      max-width: 320px;
+      background-color: var(--panel-bg);
+      display: flex;
+      flex-direction: column;
+      padding: 15px;
+      box-sizing: border-box;
+      border-left: 1px solid var(--border-color);
+      z-index: 20;
+    }
+
+    #game-stage {
+      position: relative;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+      border-radius: 4px;
+      background-color: #1b2631;
+      overflow: hidden;
+      max-width: 98%;
+      max-height: 98%;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 4px;
+      image-rendering: pixelated;
+    }
+
+    /* ... (skip unmodified parts) ... */
+
+    /* 左侧面板内容样式 */
+    .panel-header {
+      margin-bottom: 15px;
+    }
+
+    .panel-title {
+      font-size: 1.3rem;
+      margin: 0 0 12px 0;
+      text-align: center;
+      color: var(--accent-color);
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 12px;
+      letter-spacing: 4px;
+      font-weight: bold;
+      font-family: "楷体", serif;
+      text-shadow: 0 2px 10px rgba(255, 215, 0, 0.2);
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    /* 策略说明按钮 */
+    .strategy-help-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: rgba(255, 215, 0, 0.1);
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      border-radius: 50%;
+      color: var(--accent-color);
+      font-size: 0.9rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .strategy-help-btn:hover {
+      background: rgba(255, 215, 0, 0.2);
+      border-color: var(--accent-color);
+      transform: scale(1.1);
+    }
+
+    /* 策略说明弹窗 */
+    .strategy-popup {
+      display: none;
+      position: absolute;
+      left: 40px;
+      top: 0;
+      background: #1e1e1e;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      min-width: 200px;
+      z-index: 1000;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+    }
+
+    .strategy-help-btn:hover .strategy-popup,
+    .strategy-popup:hover {
+      display: block;
+    }
+
+    .strategy-popup-title {
+      color: var(--accent-color);
+      font-size: 0.9rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+      text-align: center;
+      font-family: "楷体", serif;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 6px;
+    }
+
+    .strategy-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      padding: 4px 0;
+    }
+
+    .strategy-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .strategy-icon {
+      font-size: 1rem;
+      margin-right: 8px;
+      min-width: 20px;
+    }
+
+    .strategy-name {
+      font-weight: bold;
+      color: #ddd;
+      margin-right: 6px;
+      min-width: 40px;
+    }
+
+    .strategy-desc {
+      color: #888;
+      font-size: 0.7rem;
+    }
+
+    .speed-control {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+    }
+
+    /* 速度按钮样式 */
+    .speed-btn {
+      flex: 1;
+      min-width: 45px;
+      padding: 8px 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      color: #aaa;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+      font-family: "Consolas", monospace;
+    }
+
+    .speed-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.3);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    .speed-btn:active {
+      transform: translateY(0);
+    }
+
+    .speed-btn.active {
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.3) 0%, rgba(255, 215, 0, 0.15) 100%);
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+      box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+    }
+
+    /* 主要按钮样式 */
+    .btn {
+      width: 100%;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: "Microsoft YaHei", sans-serif;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-color) 0%, #f9a825 100%);
+      color: #1a1a1a;
+      box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(255, 215, 0, 0.4);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    /* 地图上的势力标签 */
+    .faction-label {
+      position: absolute;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      font-family: "楷体", serif;
+      font-weight: bold;
+      color: #fff;
+      font-size: 20px;
+      text-shadow: 0 2px 3px rgba(0, 0, 0, 0.8);
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.6);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .speech-bubble {
+      position: absolute;
+      bottom: 45px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      animation: bubblePop 0.3s ease-out;
+    }
+
+    .bubble-war { background: rgba(239, 83, 80, 0.9); }
+    .bubble-eco { background: rgba(102, 187, 106, 0.9); }
+    .bubble-bad { background: rgba(239, 83, 80, 0.9); }
+    .bubble-event { background: rgba(255, 215, 0, 0.9); color: #000; }
+
+    @keyframes bubblePop {
+      0% { transform: scale(0); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    h1 {
+      font-size: 1.3rem;
+      margin: 0 0 12px 0;
+      text-align: center;
+      color: var(--accent-color);
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 12px;
+      letter-spacing: 4px;
+      font-weight: bold;
+      font-family: "楷体", serif;
+      text-shadow: 0 2px 10px rgba(255, 215, 0, 0.2);
+    }
+
+    .stats-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      gap: 10px;
+      padding-right: 4px;
+    }
+
+    .stats-panel::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .stats-panel::-webkit-scrollbar-thumb {
+      background: #444;
+      border-radius: 2px;
+    }
+
+    .faction-item {
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+      border-radius: 6px;
+      border-left: 4px solid transparent;
+      transition: all 0.3s;
+      position: relative;
+      height: auto;
+      justify-content: space-between;
+    }
+
+    .faction-item.dead {
+      opacity: 0.4;
+      filter: grayscale(100%);
+      transform: scale(0.98);
+    }
+
+    .sidebar-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      margin-right: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: "楷体", serif;
+      font-weight: bold;
+      color: #fff;
+      font-size: 18px;
+      flex-shrink: 0;
+      text-shadow: 0 1px 2px #000;
+      align-self: flex-start;
+      margin-top: 2px;
+    }
+
+    .faction-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      z-index: 2;
+    }
+
+    .faction-row-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+
+    .faction-name {
+      font-weight: bold;
+      font-size: 1rem;
+      color: #eee;
+      letter-spacing: 0.5px;
+    }
+
+    .faction-strategy {
+      font-size: 0.75rem;
+      color: #aaa;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    .army-display {
+      font-size: 0.95rem;
+      color: var(--accent-color);
+      font-weight: bold;
+      font-family: "Consolas", monospace;
+      margin-bottom: 2px;
+    }
+
+    .army-label {
+      font-size: 0.75rem;
+      color: #888;
+      margin-right: 5px;
+      font-weight: normal;
+    }
+
+    .faction-stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      font-size: 0.8rem;
+      color: #bbb;
+      margin-bottom: 4px;
+    }
+
+    .stat-cell {
+      display: flex;
+      align-items: center;
+    }
+
+    .stat-val {
+      color: #fff;
+      font-weight: bold;
+      margin-left: 4px;
+      font-family: "Consolas";
+    }
+
+    .stat-growth {
+      color: var(--success-color);
+    }
+
+    .resource-row {
+      display: flex;
+      gap: 10px;
+      font-size: 0.8rem;
+      color: #888;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 6px;
+      margin-top: 2px;
+    }
+
+    .res-item {
+      display: flex;
+      align-items: center;
+    }
+
+    .res-item span {
+      color: #ddd;
+      margin-left: 3px;
+      font-family: "Consolas";
+    }
+
+    .supply-info {
+      font-size: 0.75rem;
+      color: #777;
+      margin-top: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .progress-bg {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      margin-top: 2px;
+      width: 100%;
+      position: relative;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      transition: width 0.5s ease;
+      position: relative;
+      background: #666;
+    }
+
+    .progress-bar.warning {
+      background: #f57f17;
+    }
+
+    .progress-bar.danger {
+      background: #ef5350;
+    }
+
+    /* Compact Faction Card Styles */
+    .faction-header-compact {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .faction-main-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .info-row-1 {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 2px;
+    }
+
+    .army-display-compact {
+      color: var(--accent-color);
+      font-weight: bold;
+      font-family: "Consolas";
+      font-size: 1.1rem;
+    }
+
+    .info-row-2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: #aaa;
+    }
+
+    .stat-compact b {
+      color: #fff;
+      font-family: "Consolas";
+    }
+
+    .faction-footer-compact {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      padding: 4px 6px;
+    }
+
+    .res-compact-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: #888;
+      margin-bottom: 2px;
+    }
+
+    .supply-text-compact {
+      margin-left: auto;
+      color: #666;
+    }
+
+    /* Compact Faction Card Styles */
+    .faction-header-compact {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    /* 删除旧的横向滚动样式覆盖 */
+
+    /* 日志 */
+    #log-container {
+      flex: 1;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: "楷体", serif;
+      font-size: 0.85rem;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .log-panel-header {
+      font-size: 1rem;
+      color: var(--accent-color);
+      font-family: "楷体", serif;
+      font-weight: bold;
+      text-align: center;
+      padding: 8px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 10px;
+      letter-spacing: 2px;
+    }
+
+    #log-container::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #log-container::-webkit-scrollbar-thumb {
+      background: #333;
+    }
+
+    .log-entry {
+      margin-bottom: 8px;
+      color: #999;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      padding-bottom: 6px;
+      line-height: 1.5;
+      display: flex;
+      align-items: baseline;
+    }
+
+    .log-year {
+      color: #555;
+      font-size: 0.8rem;
+      margin-right: 8px;
+      font-family: "Consolas", monospace;
+      min-width: 45px;
+    }
+
+    .log-content {
+      flex: 1;
+    }
+
+    .log-event {
+      color: #a5d6a7;
+    }
+
+    .log-bad {
+      color: #ef9a9a;
+    }
+
+    .log-war {
+      color: #ef5350;
+      font-weight: bold;
+    }
+
+    .log-win {
+      color: #ffd700;
+      font-weight: bold;
+      text-align: center;
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(255, 215, 0, 0.1);
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      border-radius: 4px;
+    }
+
+    /* Tooltip */
+    #tooltip {
+      position: fixed;
+      background: rgba(25, 25, 25, 0.98);
+      color: white;
+      padding: 12px 16px;
+      border-radius: 6px;
+      pointer-events: none;
+      display: none;
+      font-size: 0.9rem;
+      z-index: 1000;
+      border: 1px solid #444;
+      min-width: 180px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    }
+
+    #tooltip .tt-header {
+      border-bottom: 1px solid #444;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+
+    #tooltip .tt-row {
+      margin-bottom: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #tooltip .tt-val {
+      font-weight: bold;
+      font-family: "Consolas", monospace;
+      color: #eee;
+    }
+
+    .prov-badge {
+      font-size: 0.75rem;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: #333;
+      color: #aaa;
+      margin-left: 8px;
+    }
+
+    .hint-text {
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 8px;
+      border-top: 1px dashed #444;
+      padding-top: 4px;
+      font-style: italic;
+      text-align: center;
+    }
+
+    .action-feedback {
+      position: absolute;
+      pointer-events: none;
+      font-weight: bold;
+      font-family: "Consolas", monospace;
+      animation: floatUp 1s ease-out forwards;
+      z-index: 50;
+      text-shadow: 0 1px 3px #000;
+      font-size: 16px;
+    }
+
+    @keyframes floatUp {
+      0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+
+      100% {
+        transform: translateY(-40px) scale(1.3);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="game-container">
+    <!-- 左侧信息栏 -->
+    <div id="left-panel">
+      <div class="panel-header">
+        <h1 class="panel-title">👑 华夏·地缘战略</h1>
+      </div>
+      <div class="controls">
+        <div class="speed-control">
+          <button class="speed-btn" onclick="setSpeed(1)">1x</button>
+          <button class="speed-btn active" onclick="setSpeed(4)">4x</button>
+          <button class="speed-btn" onclick="setSpeed(10)">MAX</button>
+          <button class="speed-btn" onclick="setSpeed(0)">⏸</button>
+        </div>
+        <button class="btn btn-primary" onclick="initGame()">重启乱世</button>
+      </div>
+
+      <!-- 策略说明按钮 -->
+      <div class="strategy-help-btn">
+        ?
+        <div class="strategy-popup">
+          <div class="strategy-popup-title">📋 决策策略</div>
+          <div class="strategy-item">
+            <span class="strategy-icon">⚔️</span>
+            <span class="strategy-name">征伐</span>
+            <span class="strategy-desc">兵力充足时进攻</span>
+          </div>
+          <div class="strategy-item">
+            <span class="strategy-icon">🛡️</span>
+            <span class="strategy-name">固守</span>
+            <span class="strategy-desc">领土少时防御</span>
+          </div>
+          <div class="strategy-item">
+            <span class="strategy-icon">🌾</span>
+            <span class="strategy-name">拓荒</span>
+            <span class="strategy-desc">优先占领资源地</span>
+          </div>
+          <div class="strategy-item">
+            <span class="strategy-icon">💤</span>
+            <span class="strategy-name">休养</span>
+            <span class="strategy-desc">兵力不足时发展</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-panel" id="statsPanel"></div>
+    </div>
+
+    <!-- 中间游戏区域 -->
+    <div id="center-stage">
+      <div id="year-display" style="
+            position: absolute; top: 25px; left: 50%; transform: translateX(-50%);
+            color: #ccc; font-family: '楷体'; font-size: 1.4rem; background: rgba(0, 0, 0, 0.7);
+            padding: 6px 24px; border-radius: 30px; border: 1px solid #555; pointer-events: none;
+            z-index: 30; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);
+          ">
+        公元 184 年
+      </div>
+      <div id="game-stage">
+        <canvas id="gameCanvas"></canvas>
+        <div id="labels-layer"></div>
+      </div>
+      <div id="tooltip"></div>
+    </div>
+
+    <!-- 右侧日志栏 -->
+    <div id="right-panel">
+      <div class="log-panel-header">📜 战争日志</div>
+      <div id="log-container"></div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * 配置参数
+     */
+    const CONFIG = {
+      mapWidth: 1024,
+      mapHeight: 768,
+      provinceCount: 200,
+      factionCount: 3,
+      tickRate: 30,
+
+      // 基础数值 (内部逻辑单位)
+      // 下调数值，使初始和总人口更合理
+      armyGrowthBase: 0.8, // 基础增长减缓
+      armyGrowthCapital: 3.0,
+
+      // 显示倍率 (内部 1 单位 = 显示 40 人)
+      // 目标：初始 3-9万 -> 750-2250 internal
+      // 首都 500 + 5*100 = 1000 internal * 40 = 40,000. 合理。
+      // 满图 160 格 * 200 supply = 32000 * 40 = 1,280,000. 合理。
+      displayScale: 40,
+
+      particleRatio: 25, // 多少逻辑兵力 = 1个粒子。25 * 40 = 1000人一个点
+      maxParticles: 1000,
+
+      transferSpeed: 0.8,
+      attackSpeed: 0.6,
+      combatDuration: 30,
+    };
+
+    // 增加 maxSupply 属性 (土地承载力)
+    const PROV_TYPES = {
+      NORMAL: { id: "normal", name: "荒野", growth: 1.0, def: 1.0, val: 1, maxSupply: 200, icon: null },
+      FARM: { id: "farm", name: "粮仓", growth: 3.0, def: 0.8, val: 3, maxSupply: 400, icon: "🌾" },
+      FORT: { id: "fort", name: "关隘", growth: 0.5, def: 2.5, val: 2, maxSupply: 100, icon: "🛡️" },
+      CITY: { id: "city", name: "商都", growth: 1.5, def: 1.2, val: 5, maxSupply: 300, icon: "💰" },
+    };
+
+    const FACTION_CONFIGS = [
+      { name: "曹魏", color: "#1976d2", dark: "#0d47a1", light: "#63a4ff" },
+      { name: "蜀汉", color: "#d32f2f", dark: "#b71c1c", light: "#ff6659" },
+      { name: "东吴", color: "#388e3c", dark: "#1b5e20", light: "#66bb6a" },
+      { name: "袁绍", color: "#fbc02d", dark: "#c49000", light: "#fff263" },
+      { name: "西凉", color: "#8d6e63", dark: "#5f4339", light: "#be9c91" },
+    ];
+
+    // 战略类型
+    const STRATEGIES = {
+      AGGRESSIVE: { id: 'agg', name: '⚔️ 征伐', threshold: 0.5, desc: '兵锋所指' },
+      DEFENSIVE: { id: 'def', name: '🛡️ 固守', threshold: 1.5, desc: '深沟高垒' },
+      EXPANSION: { id: 'exp', name: '🌾 拓荒', threshold: 0.8, desc: '广积粮' },
+      RECOVER: { id: 'rec', name: '💤 休养', threshold: 2.0, desc: '休养生息' }
+    };
+
+    const EVENTS = [
+      { text: "实行屯田制，国力大增", type: "good", bubble: "屯田令!" },
+      { text: "遭遇百年旱灾，赤地千里", type: "bad", bubble: "大旱!" },
+      { text: "流民起义，边境动荡", type: "bad", bubble: "黄巾余孽!" },
+      { text: "武圣降临，全军士气高涨", type: "good", bubble: "武圣!" },
+      { text: "岁星当空，天命所归", type: "good", bubble: "祥瑞!" },
+      { text: "瘟疫横行，人口锐减", type: "bad", bubble: "瘟疫!" },
+      { text: "发现古籍，科技突破", type: "good", bubble: "奇策!" },
+      { text: "修筑长城，防御倍增", type: "good", bubble: "铁壁!" },
+      { text: "奸臣当道，军心涣散", type: "bad", bubble: "内乱!" },
+      { text: "发现金矿，国库充盈", type: "good", bubble: "金矿!" },
+      { text: "蛮族入侵，边防吃紧", type: "bad", bubble: "蛮族!" },
+      { text: "发布求贤令，人才济济", type: "good", bubble: "求贤!" },
+      { text: "天降陨石，大凶之兆", type: "bad", bubble: "天罚!" },
+      { text: "木牛流马，运粮无忧", type: "good", bubble: "神工!" },
+      { text: "挟天子以令诸侯", type: "good", bubble: "大义!" },
+      { text: "衣带诏泄露，朝野震动", type: "bad", bubble: "密谋!" },
+      { text: "火烧连营，损失惨重", type: "bad", bubble: "火攻!" },
+      { text: "草船借箭，军备大增", type: "good", bubble: "妙计!" },
+      { text: "五虎上将，威震华夏", type: "good", bubble: "虎将!" },
+      { text: "乐不思蜀，士气低落", type: "bad", bubble: "享乐..." },
+    ];
+
+    const Noise = {
+      perm: [], grad3: [[1, 1, 0], [-1, 1, 0], [1, -1, 0], [-1, -1, 0], [1, 0, 1], [-1, 0, 1], [1, 0, -1], [-1, 0, -1], [0, 1, 1], [0, -1, 1], [0, 1, -1], [0, -1, -1]],
+      init: function () {
+        this.perm = new Uint8Array(512); const p = new Uint8Array(256);
+        for (let i = 0; i < 256; i++) p[i] = i;
+        for (let i = 255; i > 0; i--) { const r = Math.floor(Math.random() * (i + 1));[p[i], p[r]] = [p[r], p[i]]; }
+        for (let i = 0; i < 512; i++) this.perm[i] = p[i & 255];
+      },
+      dot: function (g, x, y) { return g[0] * x + g[1] * y; },
+      simplex2: function (x, y) {
+        const F2 = 0.5 * (Math.sqrt(3.0) - 1.0); const s = (x + y) * F2; const i = Math.floor(x + s); const j = Math.floor(y + s);
+        const G2 = (3.0 - Math.sqrt(3.0)) / 6.0; const t = (i + j) * G2; const X0 = i - t; const Y0 = j - t; const x0 = x - X0; const y0 = y - Y0;
+        let i1, j1; if (x0 > y0) { i1 = 1; j1 = 0; } else { i1 = 0; j1 = 1; }
+        const x1 = x0 - i1 + G2; const y1 = y0 - j1 + G2; const x2 = x0 - 1.0 + 2.0 * G2; const y2 = y0 - 1.0 + 2.0 * G2;
+        const ii = i & 255; const jj = j & 255;
+        let t0 = 0.5 - x0 * x0 - y0 * y0; let n0 = 0;
+        if (t0 >= 0) { const gi0 = this.perm[ii + this.perm[jj]] % 12; t0 *= t0; n0 = t0 * t0 * this.dot(this.grad3[gi0], x0, y0); }
+        let t1 = 0.5 - x1 * x1 - y1 * y1; let n1 = 0;
+        if (t1 >= 0) { const gi1 = this.perm[ii + i1 + this.perm[jj + j1]] % 12; t1 *= t1; n1 = t1 * t1 * this.dot(this.grad3[gi1], x1, y1); }
+        let t2 = 0.5 - x2 * x2 - y2 * y2; let n2 = 0;
+        if (t2 >= 0) { const gi2 = this.perm[ii + 1 + this.perm[jj + 1]] % 12; t2 *= t2; n2 = t2 * t2 * this.dot(this.grad3[gi2], x2, y2); }
+        return 70.0 * (n0 + n1 + n2);
+      }
+    };
+
+    const STATE_GARRISON = 0;
+    const STATE_MOVING = 1;
+    const STATE_COMBAT = 2;
+
+    class Soldier {
+      constructor(prov, color, isNewSpawn = false) {
+        this.prov = prov; this.color = color; this.state = STATE_GARRISON;
+        if (isNewSpawn) { this.x = prov.vx; this.y = prov.vy; }
+        else {
+          let angle = Math.random() * Math.PI * 2; let dist = Math.random() * 8;
+          this.x = prov.vx + Math.cos(angle) * dist; this.y = prov.vy + Math.sin(angle) * dist;
+        }
+        this.tx = this.x; this.ty = this.y; this.speed = 0.5; this.combatTimer = 0;
+        this.history = []; this.pathQueue = [];
+        this.currentProvId = prov.id; // 缓存当前所在省份
+        if (!isNewSpawn) this.wanderTarget();
+      }
+      wanderTarget() {
+        let angle = Math.random() * Math.PI * 2; let r = Math.random() * 12;
+        this.tx = this.prov.vx + Math.cos(angle) * r; this.ty = this.prov.vy + Math.sin(angle) * r;
+        this.speed = 0.2 + Math.random() * 0.2;
+      }
+      setPathMission(waypoints, targetProv, isAttack) {
+        this.state = STATE_MOVING; this.isAttack = isAttack; this.targetProv = targetProv;
+        this.pathQueue = waypoints.map(p => ({ x: p.x + (Math.random() - 0.5) * 4, y: p.y + (Math.random() - 0.5) * 4 }));
+        let next = this.pathQueue.shift(); this.tx = next.x; this.ty = next.y;
+        this.speed = isAttack ? CONFIG.attackSpeed : CONFIG.transferSpeed;
+        this.speed *= 0.9 + Math.random() * 0.2;
+      }
+      update() {
+        if (this.state === STATE_MOVING && tick % 3 === 0) {
+          this.history.push({ x: this.x, y: this.y });
+          if (this.history.length > 4) this.history.shift();
+        } else if (this.state !== STATE_MOVING) { this.history = []; }
+
+        if (this.state === STATE_COMBAT) {
+          this.combatTimer--; this.x += (Math.random() - 0.5) * 1.5; this.y += (Math.random() - 0.5) * 1.5;
+          if (this.combatTimer <= 0) { applyCombatDamage(this); return "dead"; }
+          return "fighting";
+        }
+        let dx = this.tx - this.x; let dy = this.ty - this.y; let distSq = dx * dx + dy * dy;
+        if (distSq < 16) {
+          if (this.state === STATE_GARRISON) { this.wanderTarget(); }
+          else if (this.state === STATE_MOVING) {
+            if (this.pathQueue.length > 0) {
+              let next = this.pathQueue.shift(); this.tx = next.x; this.ty = next.y; return "moving";
+            }
+            if (this.isAttack) {
+              if (this.targetProv && this.targetProv.owner === this.attackerId) return "arrived";
+              this.state = STATE_COMBAT; this.combatTimer = CONFIG.combatDuration + Math.random() * 15;
+              return "fighting";
+            } else { return "arrived"; }
+          }
+        } else {
+          let dist = Math.sqrt(distSq); this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed;
+        }
+        return "moving";
+      }
+    }
+
+    class Explosion {
+      constructor(x, y, color) { this.x = x; this.y = y; this.color = color; this.life = 15; this.maxLife = 15; this.radius = 1; }
+      update() { this.life--; this.radius += 0.5; return this.life > 0; }
+      draw(ctx) {
+        ctx.strokeStyle = this.color; ctx.lineWidth = 1.5; ctx.globalAlpha = this.life / this.maxLife;
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1.0;
+      }
+    }
+
+    class FloatingText {
+      constructor(x, y, text, color) { this.x = x; this.y = y; this.text = text; this.color = color; this.life = 40; this.vy = -0.5; }
+      update() { this.life--; this.y += this.vy; return this.life > 0; }
+      draw(ctx) {
+        ctx.fillStyle = this.color; ctx.font = "bold 14px Consolas"; ctx.globalAlpha = Math.max(0, this.life / 40);
+        ctx.shadowColor = "#000"; ctx.shadowBlur = 3; ctx.fillText(this.text, this.x, this.y); ctx.shadowBlur = 0; ctx.globalAlpha = 1.0;
+      }
+    }
+
+    class Province {
+      constructor(id, x, y) {
+        this.id = id; this.cx = x; this.cy = y; this.vx = x; this.vy = y;
+        this.owner = null; this.army = 0; this.isCapital = false; this.isLand = false;
+        this.neighbors = new Set(); this.borderPoints = new Map(); this.soldiers = [];
+        this.type = PROV_TYPES.NORMAL;
+        this.distToFrontline = 999; this.hasEnemy = false; this.targetCap = 300;
+        this.streamingTargetId = -1; this.streamingType = ""; this.streamingTimer = 0; this.streamingBudget = 0;
+      }
+      syncParticles(color) {
+        let targetCount = Math.floor(this.army / CONFIG.particleRatio);
+        targetCount = Math.min(targetCount, 25);
+        while (this.soldiers.length < targetCount) this.soldiers.push(new Soldier(this, color, false));
+        if (this.soldiers.length > targetCount) this.soldiers.splice(0, this.soldiers.length - targetCount);
+      }
+      updateAIStatus() {
+        this.hasEnemy = false;
+        for (let nid of this.neighbors) { if (provinces[nid].owner !== this.owner) { this.hasEnemy = true; break; } }
+        // 目标兵力与土地承载力挂钩，不能无限增长
+        let cap = this.type.maxSupply;
+        if (this.isCapital) cap *= 2; // 首都扩容
+        if (this.hasEnemy) this.targetCap = cap * 0.9; // 前线保持战备
+        else this.targetCap = cap * 0.4; // 后方休养
+      }
+    }
+
+    class Faction {
+      constructor(id, conf) {
+        this.id = id; this.name = conf.name; this.shortName = conf.name[0];
+        this.color = conf.color; this.darkColor = conf.dark; this.lightColor = conf.light;
+        this.isAlive = true; this.tiles = 0; this.armyTotal = 0; this.capitalProv = null;
+        this.centerX = 0; this.centerY = 0;
+        this.domLabel = null; this.domListItem = null;
+        this.stats = { growth: 0, cities: 0, farms: 0, forts: 0, totalSupply: 0 };
+
+        this.strategy = STRATEGIES.RECOVER;
+        this.strategyTimer = 0; this.bubbleTimer = 0;
+      }
+
+      say(text, type = 'war') {
+        if (!this.isAlive || !this.domLabel) return;
+        if (this.bubbleTimer > 0) return;
+        const bubble = document.createElement("div");
+        bubble.className = `speech-bubble bubble-${type}`; bubble.innerText = text;
+        this.domLabel.appendChild(bubble);
+        setTimeout(() => { bubble.remove(); }, 3500);
+        this.bubbleTimer = 150;
+      }
+
+      updateStrategy() {
+        if (!this.isAlive) return;
+        if (this.strategyTimer > 0) { this.strategyTimer--; this.bubbleTimer--; return; }
+        this.strategyTimer = 100 + Math.random() * 50;
+        let oldStrat = this.strategy;
+
+        let lateGameModifier = year > 250 ? 0.3 : 1.0;
+
+        // 依据供给率判断战略
+        let supplyRatio = this.armyTotal / (this.stats.totalSupply || 1);
+
+        if (this.tiles < 5 || (this.capitalProv && this.capitalProv.hasEnemy)) {
+          this.strategy = STRATEGIES.DEFENSIVE;
+        } else if (supplyRatio > 0.9) { // 人口爆炸，必须扩张
+          this.strategy = STRATEGIES.AGGRESSIVE;
+        } else if (this.armyTotal < 1000 * lateGameModifier) {
+          this.strategy = STRATEGIES.RECOVER;
+        } else {
+          // 寻找空地
+          let hasEmptyFarm = false;
+          for (let p of provinces) {
+            if (p.owner === this.id) {
+              for (let nid of p.neighbors) {
+                let n = provinces[nid];
+                if (n.owner === null && (n.type.id === 'farm' || n.type.id === 'city')) { hasEmptyFarm = true; break; }
+              }
+            }
+          }
+          if (hasEmptyFarm && Math.random() < 0.7 * lateGameModifier) this.strategy = STRATEGIES.EXPANSION;
+          else this.strategy = STRATEGIES.AGGRESSIVE;
+        }
+
+        if (oldStrat !== this.strategy) {
+          let msg = "", type = "war";
+          if (this.strategy === STRATEGIES.DEFENSIVE) { msg = "誓死守卫!"; type = "bad"; }
+          else if (this.strategy === STRATEGIES.AGGRESSIVE) { msg = "全军出击!"; type = "war"; }
+          else if (this.strategy === STRATEGIES.EXPANSION) { msg = "抢占资源!"; type = "eco"; }
+          else if (this.strategy === STRATEGIES.RECOVER) { msg = "休养生息"; type = "eco"; }
+          this.say(msg, type);
+
+          const stratSpan = this.domListItem.querySelector('.faction-strategy');
+          if (stratSpan) stratSpan.innerText = this.strategy.name;
+        }
+      }
+    }
+
+    let canvas, ctx, tooltip, labelsLayer, gameStage, yearDisplay, statsPanel, logContainer;
+    let mapCacheCanvas, mapCacheCtx;
+    let centerStage;
+    let mapDirty = true;
+
+    let provinces = [];
+    let pixelMap = null;
+    let factions = [];
+    let activeParticles = [];
+    let explosions = [];
+    let floatingTexts = [];
+
+    let gameLoopId;
+    let tick = 0;
+    let speedMult = 4;
+    let isPaused = false;
+    let year = 1;
+    let totalLandProvinces = 0;
+
+    window.onload = () => {
+      canvas = document.getElementById("gameCanvas");
+      ctx = canvas.getContext("2d", { alpha: false });
+      gameStage = document.getElementById("game-stage");
+      centerStage = document.getElementById("center-stage");
+      yearDisplay = document.getElementById("year-display");
+      tooltip = document.getElementById("tooltip");
+      labelsLayer = document.getElementById("labels-layer");
+      statsPanel = document.getElementById("statsPanel");
+      logContainer = document.getElementById("log-container");
+
+      mapCacheCanvas = document.createElement("canvas");
+      mapCacheCtx = mapCacheCanvas.getContext("2d");
+
+      window.addEventListener("resize", resizeCanvas);
+      canvas.addEventListener("mousemove", handleHover);
+      canvas.addEventListener("mousedown", handleClick);
+      canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+      resizeCanvas();
+      initGame();
+    };
+
+    function resizeCanvas() {
+      const aspect = CONFIG.mapWidth / CONFIG.mapHeight;
+
+      // 计算中间游戏区域的可用空间，留出更多边距让画面更小
+      let availableW = centerStage.clientWidth - 100;
+      let availableH = centerStage.clientHeight - 100; // 顶部留出空间给时间显示
+
+      // 根据宽高比计算实际尺寸
+      let w = availableW;
+      let h = w / aspect;
+
+      if (h > availableH) {
+        h = availableH;
+        w = h * aspect;
+      }
+
+      // 限制最大尺寸，让游戏画面保持合适大小
+      if (w > 1000) { w = 1000; h = w / aspect; }
+
+      gameStage.style.width = `${w}px`;
+      gameStage.style.height = `${h}px`;
+      canvas.width = CONFIG.mapWidth;
+      canvas.height = CONFIG.mapHeight;
+      mapCacheCanvas.width = CONFIG.mapWidth;
+      mapCacheCanvas.height = CONFIG.mapHeight;
+      mapDirty = true;
+      if (!gameLoopId) draw();
+    }
+
+    function initGame() {
+      if (gameLoopId) clearTimeout(gameLoopId);
+      tick = 0; year = 1; isPaused = false;
+      provinces = []; factions = []; explosions = []; floatingTexts = []; activeParticles = [];
+      labelsLayer.innerHTML = ""; logContainer.innerHTML = "";
+      addLog("—— 乱世重启，群雄逐鹿 ——", "log-important");
+      Noise.init();
+      setTimeout(() => {
+        generateMapChinaLike(); spawnFactions(); initSidebar(); updateStats(); updateLabels();
+        mapDirty = true; draw(); gameLoop();
+      }, 50);
+    }
+
+    function generateMapChinaLike() {
+      provinces = []; let fails = 0;
+      while (provinces.length < CONFIG.provinceCount && fails < 30000) {
+        let x = Math.floor(Math.random() * CONFIG.mapWidth); let y = Math.floor(Math.random() * CONFIG.mapHeight);
+        let tooClose = false;
+        for (let i = Math.max(0, provinces.length - 50); i < provinces.length; i++) {
+          if ((x - provinces[i].cx) ** 2 + (y - provinces[i].cy) ** 2 < 200) { tooClose = true; break; }
+        }
+        if (!tooClose) {
+          let p = new Province(provinces.length, x, y);
+          let r = Math.random();
+          if (r < 0.08) p.type = PROV_TYPES.CITY;
+          else if (r < 0.25) p.type = PROV_TYPES.FARM;
+          else if (r < 0.35) p.type = PROV_TYPES.FORT;
+          else p.type = PROV_TYPES.NORMAL;
+          provinces.push(p);
+        } else fails++;
+      }
+
+      pixelMap = new Uint16Array(CONFIG.mapWidth * CONFIG.mapHeight);
+      let w = CONFIG.mapWidth, h = CONFIG.mapHeight;
+      let provSumX = new Float64Array(provinces.length);
+      let provSumY = new Float64Array(provinces.length);
+      let provPixelCount = new Int32Array(provinces.length);
+      let borderSums = new Map();
+
+      function getChinaShapeDist(nx, ny) {
+        // 扩大中国形状，让地图占据更大比例，整体继续向右移动
+        let dMain = Math.sqrt(((nx - 0.58) * 1.8) ** 2 + ((ny - 0.5) * 1.5) ** 2);
+        let dNE = Math.sqrt(((nx - 0.78) * 2.5) ** 2 + ((ny - 0.22) * 3.0) ** 2);
+        let dWest = Math.sqrt(((nx - 0.25) * 2.2) ** 2 + ((ny - 0.42) * 2.5) ** 2);
+        let dSouth = Math.sqrt(((nx - 0.58) * 2.0) ** 2 + ((ny - 0.75) * 2.5) ** 2);
+        return Math.min(dMain, dNE, dWest, dSouth);
+      }
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          let idx = y * w + x;
+          let nx = x / w, ny = y / h;
+          let nVal = Noise.simplex2(nx * 4, ny * 4);
+          // 进一步降低阈值，让陆地面积更大
+          if (getChinaShapeDist(nx, ny) + nVal * 0.015 > 0.48) { pixelMap[idx] = 65535; continue; }
+          let warpX = Noise.simplex2(nx * 5, ny * 5) * 15; let warpY = Noise.simplex2(nx * 5 + 100, ny * 5 + 100) * 15;
+          let qx = x + warpX, qy = y + warpY;
+          let minD = Infinity, best = -1;
+          for (let p of provinces) { let d = (qx - p.cx) ** 2 + (qy - p.cy) ** 2; if (d < minD) { minD = d; best = p.id; } }
+          pixelMap[idx] = best; provinces[best].isLand = true;
+          provSumX[best] += x; provSumY[best] += y; provPixelCount[best]++;
+        }
+      }
+      for (let p of provinces) {
+        if (provPixelCount[p.id] > 0) {
+          p.vx = provSumX[p.id] / provPixelCount[p.id]; p.vy = provSumY[p.id] / provPixelCount[p.id];
+          borderSums.set(p.id, new Map());
+        } else p.isLand = false;
+      }
+      for (let y = 0; y < h - 1; y += 2) {
+        for (let x = 0; x < w - 1; x += 2) {
+          let idx = y * w + x; let p1 = pixelMap[idx]; if (p1 === 65535) continue;
+          let checkOffsets = [1, w];
+          for (let off of checkOffsets) {
+            let p2 = pixelMap[idx + off];
+            if (p2 !== 65535 && p2 !== p1) {
+              provinces[p1].neighbors.add(p2); provinces[p2].neighbors.add(p1);
+              let bx = x + (off === 1 ? 0.5 : 0); let by = y + (off === w ? 0.5 : 0);
+              let map1 = borderSums.get(p1); if (!map1.has(p2)) map1.set(p2, { sx: 0, sy: 0, c: 0 });
+              let rec1 = map1.get(p2); rec1.sx += bx; rec1.sy += by; rec1.c++;
+            }
+          }
+        }
+      }
+      for (let p of provinces) {
+        if (p.isLand) continue;
+        let map = borderSums.get(p.id);
+        if (map) {
+          for (let [nid, rec] of map) p.borderPoints.set(nid, { x: rec.sx / rec.c, y: rec.sy / rec.c });
+        }
+      }
+      totalLandProvinces = provinces.filter((p) => p.isLand).length;
+    }
+
+    function spawnFactions() {
+      factions = [];
+      // 初始化所有预设势力
+      FACTION_CONFIGS.forEach((conf, index) => {
+        let f = new Faction(index, conf);
+        f.isAlive = false; // 默认为灭亡状态
+        factions.push(f);
+      });
+
+      let landProvs = provinces.filter((p) => p.isLand);
+      if (landProvs.length < CONFIG.factionCount) { initGame(); return; }
+
+      let spawnPoints = []; let attempts = 0;
+      while (spawnPoints.length < CONFIG.factionCount && attempts < 100) {
+        let p = landProvs[Math.floor(Math.random() * landProvs.length)];
+        let ok = true;
+        for (let sp of spawnPoints) { if ((p.cx - sp.cx) ** 2 + (p.cy - sp.cy) ** 2 < 20000) ok = false; }
+        if (ok) spawnPoints.push(p); attempts++;
+      }
+      while (spawnPoints.length < CONFIG.factionCount) spawnPoints.push(landProvs[Math.floor(Math.random() * landProvs.length)]);
+
+      spawnPoints.forEach((prov, index) => {
+        let f = factions[index];
+        f.isAlive = true;
+        f.capitalProv = prov;
+        prov.owner = index;
+        // 初始内部兵力 500 (约等于2万)
+        prov.army = 500;
+        prov.isCapital = true; prov.type = PROV_TYPES.CITY;
+
+        const el = document.createElement("div");
+        el.className = "faction-label";
+        el.style.borderColor = f.lightColor; el.style.backgroundColor = f.darkColor;
+        el.textContent = f.shortName;
+        labelsLayer.appendChild(el);
+        f.domLabel = el;
+
+        // 初始领土
+        for (let nid of prov.neighbors) { let n = provinces[nid]; n.owner = index; n.army = 100; }
+      });
+
+      // 为未激活的势力也创建DOM元素（隐藏状态），以便起义时使用
+      for (let i = CONFIG.factionCount; i < factions.length; i++) {
+        let f = factions[i];
+        const el = document.createElement("div");
+        el.className = "faction-label";
+        el.style.borderColor = f.lightColor; el.style.backgroundColor = f.darkColor;
+        el.textContent = f.shortName;
+        el.style.display = "none";
+        labelsLayer.appendChild(el);
+        f.domLabel = el;
+      }
+    }
+
+    function initSidebar() {
+      statsPanel.innerHTML = "";
+      factions.forEach((f) => {
+        const item = document.createElement("div");
+        item.className = "faction-item"; item.id = `sidebar-item-${f.id}`; item.style.borderLeftColor = f.color;
+
+        // 更紧凑的布局结构
+        item.innerHTML = `
+          <div class="faction-header-compact">
+            <div class="sidebar-avatar" style="background:${f.color}; border-color:${f.lightColor}">${f.shortName}</div>
+            <div class="faction-main-info">
+              <div class="info-row-1">
+                <span class="faction-name">${f.name}</span>
+                <span class="army-display-compact" id="stat-army-${f.id}">0</span>
+              </div>
+              <div class="info-row-2">
+                <span class="faction-strategy">${f.strategy.name}</span>
+                <span class="stat-compact">疆域 <b id="stat-tiles-${f.id}">0</b></span>
+                <span class="stat-compact stat-growth" id="stat-growth-${f.id}">+0</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="faction-footer-compact">
+             <div class="res-compact-row">
+                <span title="商都">💰 <span id="stat-cities-${f.id}">0</span></span>
+                <span title="粮仓">🌾 <span id="stat-farms-${f.id}">0</span></span>
+                <span title="关隘">�️ <span id="stat-forts-${f.id}">0</span></span>
+                <span class="supply-text-compact">承载 <span id="stat-supply-${f.id}">0</span>万</span>
+             </div>
+             <div class="progress-bg compact-bg"><div class="progress-bar" id="stat-supply-bar-${f.id}"></div></div>
+          </div>
+        `;
+        statsPanel.appendChild(item); f.domListItem = item;
+      });
+    }
+
+    function gameLoop() {
+      if (!isPaused && factions.length > 0) updateLogic();
+      draw();
+      let delay = isPaused ? 100 : 1000 / (CONFIG.tickRate * speedMult || 10);
+      if (speedMult >= 10) delay = 16;
+      gameLoopId = setTimeout(gameLoop, delay);
+    }
+
+    function updateLogic() {
+      tick++;
+      if (tick % 180 === 0) {
+        year++; yearDisplay.innerText = `公元 ${184 + year} 年`;
+        if (Math.random() < 0.08) triggerRandomEvent();
+        // 每年有概率发生叛乱
+        if (year > 5 && Math.random() < 0.15) checkRebellion();
+
+        calculateDistanceFields();
+        for (let f of factions) f.updateStrategy();
+      }
+
+      for (let p of provinces) {
+        if (!p.isLand || p.owner === null) continue;
+        let f = factions[p.owner];
+
+        let growth = CONFIG.armyGrowthBase * p.type.growth;
+        if (f.strategy === STRATEGIES.RECOVER) growth *= 1.5;
+        if (p.isCapital) growth += CONFIG.armyGrowthCapital;
+
+        let cap = p.type.maxSupply;
+        if (p.isCapital) cap *= 2;
+
+        if (p.army < cap) {
+          if (Math.random() < 0.3) p.army += growth;
+        }
+        else if (p.army > cap * 1.2) {
+          p.army -= 0.5;
+        }
+
+        p.updateAIStatus(); p.syncParticles(f.color);
+        processStreaming(p);
+      }
+
+      let activeProvs = provinces.filter((p) => p.owner !== null && p.army > 25);
+      // 根据activeProvs数量动态调整处理数量，避免过载
+      let processCount = Math.min(activeProvs.length, Math.floor(40 + activeProvs.length * 0.15));
+      for (let i = 0; i < processCount; i++) {
+        let p = activeProvs[Math.floor(Math.random() * activeProvs.length)];
+        handleDecision(p);
+      }
+
+      updateParticles(); checkWinCondition();
+
+      // 拦截机制：检测敌军经过，主动迎击
+      if (tick % 8 === 0) {
+        handleInterception();
+      }
+
+      // 降低UI更新频率，提升性能
+      if (tick % 15 === 0) { updateStats(); updateLabels(); }
+    }
+
+    // 拦截敌军机制 - 优化版本
+    function handleInterception() {
+      // 只检查部分粒子，减少计算量
+      let checkCount = Math.min(activeParticles.length, 50);
+
+      for (let i = 0; i < checkCount; i++) {
+        let s = activeParticles[i];
+        if (s.state !== STATE_MOVING) continue;
+
+        // 使用缓存的省份ID，避免遍历
+        if (!s.currentProvId && s.currentProvId !== 0) continue;
+        let currentProv = provinces[s.currentProvId];
+
+        if (!currentProv || !currentProv.isLand || currentProv.owner === null) continue;
+        if (currentProv.owner === s.attackerId) continue;
+
+        // 敌军经过友方领土，触发拦截
+        let defenderFaction = factions[currentProv.owner];
+        if (!defenderFaction || !defenderFaction.isAlive) continue;
+
+        // 只有兵力充足的省份才会拦截
+        if (currentProv.army > 100 && Math.random() < 0.25) {
+          // 检查是否已经在拦截这个敌人
+          if (currentProv.streamingTargetId !== s.targetProv?.id) {
+            // 向敌军位置发起拦截攻击
+            let interceptBudget = Math.min(currentProv.army * 0.4, 150);
+            startStreaming(currentProv, s.targetProv || currentProv, 'attack', interceptBudget, 50);
+          }
+        }
+      }
+    }
+
+
+    function processStreaming(source) {
+      if (source.streamingTargetId === -1 || source.streamingTimer <= 0 || source.streamingBudget <= 0) {
+        source.streamingTargetId = -1; return;
+      }
+      if (activeParticles.length > CONFIG.maxParticles) return;
+      let target = provinces[source.streamingTargetId];
+      if (!source.neighbors.has(target.id)) { source.streamingTargetId = -1; return; }
+      let cost = CONFIG.particleRatio;
+      if (source.army >= cost) {
+        source.army -= cost; source.streamingBudget -= cost;
+        spawnSingleSoldier(source, target, source.streamingType === 'attack');
+      }
+      source.streamingTimer--;
+    }
+
+    function spawnSingleSoldier(source, target, isAttack) {
+      let f = factions[source.owner];
+      // 强制设定起点为动态首都（国标位置）
+      let startProv = f.capitalProv || source;
+
+      let s = new Soldier(source, f.color, true);
+      // 士兵直接出现在首都中心
+      s.x = startProv.vx; s.y = startProv.vy;
+      s.tx = startProv.vx; s.ty = startProv.vy;
+      s.attackerId = source.owner;
+
+      let waypoints = [];
+
+      if (startProv !== source) waypoints.push({ x: source.vx, y: source.vy });
+
+      let bp = source.borderPoints.get(target.id);
+      if (bp) waypoints.push({ x: bp.x, y: bp.y });
+      waypoints.push({ x: target.vx, y: target.vy });
+
+      s.setPathMission(waypoints, target, isAttack);
+      activeParticles.push(s);
+    }
+
+    function calculateDistanceFields() {
+      for (let p of provinces) { p.distToFrontline = 999; p.hasEnemy = false; }
+      let queue = [];
+      for (let p of provinces) {
+        if (p.owner !== null) {
+          for (let nid of p.neighbors) {
+            if (provinces[nid].owner !== p.owner) {
+              p.distToFrontline = 0; p.hasEnemy = true; queue.push(p); break;
+            }
+          }
+        }
+      }
+      let head = 0;
+      while (head < queue.length) {
+        let curr = queue[head++];
+        for (let nid of curr.neighbors) {
+          let n = provinces[nid];
+          if (n.owner === curr.owner && n.distToFrontline > curr.distToFrontline + 1) {
+            n.distToFrontline = curr.distToFrontline + 1; queue.push(n);
+          }
+        }
+      }
+    }
+
+    // 叛乱机制：大帝国概率分裂
+    function checkRebellion() {
+      let empires = factions.filter(f => f.isAlive && f.tiles > 50); // 拥有50块地以上算大帝国
+      if (empires.length === 0) return;
+
+      let targetEmp = empires[Math.floor(Math.random() * empires.length)];
+
+      // 寻找一个死掉的势力作为叛军领袖
+      let deadFactions = factions.filter(f => !f.isAlive);
+      if (deadFactions.length === 0) return; // 没有空位
+      let rebelFaction = deadFactions[Math.floor(Math.random() * deadFactions.length)];
+
+      // 寻找叛乱策源地：距离首都最远的城市
+      let farProv = null;
+      let maxDist = 0;
+      for (let p of provinces) {
+        if (p.owner === targetEmp.id) {
+          let d = (p.cx - targetEmp.centerX) ** 2 + (p.cy - targetEmp.centerY) ** 2;
+          if (d > maxDist) { maxDist = d; farProv = p; }
+        }
+      }
+
+      if (farProv) {
+        addLog(`【叛乱】${rebelFaction.name} 在 ${targetEmp.name} 边境揭竿而起！`, "log-war");
+        rebelFaction.isAlive = true;
+        if (rebelFaction.domListItem) rebelFaction.domListItem.classList.remove("dead");
+
+        // 感染周围领土
+        let queer = [farProv];
+        let rebelledCount = 0;
+        let visited = new Set();
+        visited.add(farProv.id);
+
+        while (queer.length > 0 && rebelledCount < 18) {
+          let curr = queer.shift();
+
+          // 叛变
+          curr.owner = rebelFaction.id;
+          curr.army = Math.max(curr.army, 300); // 叛军初始兵力
+          rebelledCount++;
+
+          for (let nid of curr.neighbors) {
+            let n = provinces[nid];
+            if (!visited.has(n.id) && n.owner === targetEmp.id) {
+              visited.add(n.id);
+              queer.push(n);
+            }
+          }
+        }
+        // 触发更新
+        mapDirty = true;
+        rebelFaction.say("苍天已死!", "war");
+      }
+    }
+
+    function handleDecision(source) {
+      if (source.streamingTargetId !== -1) {
+        if (source.streamingBudget < 50 || source.streamingTimer < 20) { } else { return; }
+      }
+
+      let f = factions[source.owner];
+      let strat = f.strategy;
+      let surplus = source.army - source.targetCap;
+      let neighbors = Array.from(source.neighbors).map((nid) => provinces[nid]);
+      let enemies = neighbors.filter((n) => n.owner !== source.owner);
+      let friends = neighbors.filter((n) => n.owner === source.owner);
+
+      if (strat === STRATEGIES.RECOVER && surplus < 200) return;
+
+      if (enemies.length > 0) {
+        enemies.sort((a, b) => {
+          let scoreA = a.army * a.type.def + (a.owner === null ? -500 : 0);
+          let scoreB = b.army * b.type.def + (b.owner === null ? -500 : 0);
+
+          // 核心优化：包围加成
+          let friendsA = 0; for (let nid of a.neighbors) { if (provinces[nid].owner === source.owner) friendsA++; }
+          let friendsB = 0; for (let nid of b.neighbors) { if (provinces[nid].owner === source.owner) friendsB++; }
+          scoreA -= friendsA * 300; // 朋友围得越多，分数越低（越容易打，优先打）
+          scoreB -= friendsB * 300;
+
+          if (strat === STRATEGIES.EXPANSION) {
+            if (a.owner === null && a.type.val > b.type.val) scoreA -= 2000;
+            if (b.owner === null && b.type.val > a.type.val) scoreB -= 2000;
+
+            // 优先填补内部空洞
+            let isInternalA = true; for (let nid of a.neighbors) { if (provinces[nid].owner !== source.owner) isInternalA = false; }
+            if (isInternalA) scoreA -= 5000;
+          }
+          if (strat === STRATEGIES.AGGRESSIVE) {
+            if (a.owner !== null) scoreA -= 1000;
+            if (b.owner !== null) scoreB -= 1000;
+          }
+          return scoreA - scoreB;
+        });
+
+        let target = enemies[0];
+        let isEmptyLand = target.owner === null;
+        let cost = target.army * target.type.def;
+        let safeThreshold = cost * strat.threshold + 20;
+
+        // 如果是包围圈内的敌人，大胆进攻 in
+        let friendsCount = 0;
+        for (let nid of target.neighbors) { if (provinces[nid].owner === source.owner) friendsCount++; }
+        if (friendsCount >= 3) safeThreshold *= 0.6;
+
+        if (isEmptyLand) {
+          if (source.army > 20) startStreaming(source, target, 'attack', 30, 60);
+        } else {
+          if (source.army > safeThreshold && surplus > 10) {
+            startStreaming(source, target, 'attack', Math.min(source.army * 0.7, cost + 200), 120);
+          }
+        }
+        return;
+      }
+
+      if (friends.length > 0 && surplus > 30) {
+        let forwardTargets = friends.filter((n) => n.distToFrontline < source.distToFrontline || (strat === STRATEGIES.DEFENSIVE && n.isCapital));
+        if (forwardTargets.length > 0) {
+          let target = forwardTargets[Math.floor(Math.random() * forwardTargets.length)];
+          startStreaming(source, target, 'transfer', Math.min(surplus, 200), 90);
+        }
+      }
+    }
+
+    function startStreaming(source, target, type, budget, duration) {
+      if (source.streamingTargetId === target.id) {
+        source.streamingBudget += budget; source.streamingTimer += duration;
+      } else {
+        source.streamingTargetId = target.id; source.streamingType = type;
+        source.streamingBudget = budget; source.streamingTimer = duration;
+      }
+    }
+
+    function updateParticles() {
+      for (let i = activeParticles.length - 1; i >= 0; i--) {
+        let s = activeParticles[i]; let status = s.update();
+        if (status === "dead") activeParticles.splice(i, 1);
+        else if (status === "arrived") { handleArrival(s); activeParticles.splice(i, 1); }
+        // 更新粒子当前所在省份缓存
+        else if (tick % 10 === 0) updateParticleCurrentProv(s);
+      }
+      for (let p of provinces) { for (let s of p.soldiers) s.update(); }
+      for (let i = explosions.length - 1; i >= 0; i--) { if (!explosions[i].update()) explosions.splice(i, 1); }
+      for (let i = floatingTexts.length - 1; i >= 0; i--) { if (!floatingTexts[i].update()) floatingTexts.splice(i, 1); }
+    }
+
+    // 更新粒子当前所在省份（用于拦截机制）
+    function updateParticleCurrentProv(s) {
+      let minDist = Infinity;
+      let closestProv = null;
+      // 只检查附近的省份（使用简单距离判断）
+      for (let p of provinces) {
+        if (!p.isLand) continue;
+        let dist = (s.x - p.vx) ** 2 + (s.y - p.vy) ** 2;
+        if (dist < minDist) {
+          minDist = dist;
+          closestProv = p;
+        }
+      }
+      if (closestProv && minDist < 2500) { // 50像素范围内
+        s.currentProvId = closestProv.id;
+      }
+    }
+
+    function handleArrival(soldier) {
+      let target = soldier.targetProv; let amount = CONFIG.particleRatio;
+      if (target.owner === soldier.attackerId) target.army += amount;
+    }
+
+    function applyCombatDamage(soldier) {
+      let target = soldier.targetProv; let amount = CONFIG.particleRatio;
+      if (target.owner !== soldier.attackerId) {
+        let def = target.type.def;
+        let lethality = 1.0 + (year / 100);
+        let dmg = (amount / def) * lethality;
+        target.army -= dmg;
+        explosions.push(new Explosion(soldier.x, soldier.y, "#fff"));
+        if (target.army <= 0) { target.army = 0; conquer(target, soldier.attackerId); }
+      } else { target.army += amount; }
+    }
+
+    // 核心修正：取消“斩首”逻辑，改为只有在无地时灭亡
+    function conquer(target, newOwnerId) {
+      let oldOwnerId = target.owner;
+      target.owner = newOwnerId; target.army = 50; target.isCapital = false;
+      target.soldiers = []; target.streamingTargetId = -1; mapDirty = true;
+
+      floatingTexts.push(new FloatingText(target.vx, target.vy, `占领!`, factions[newOwnerId].lightColor));
+
+      // 检查旧主是否还有领土
+      if (oldOwnerId !== null && factions[oldOwnerId].isAlive) {
+        let hasLand = false;
+        for (let p of provinces) {
+          if (p.owner === oldOwnerId && p.isLand) { hasLand = true; break; }
+        }
+        if (!hasLand) {
+          eliminateFaction(oldOwnerId, newOwnerId);
+        } else {
+          // 如果还有地，但国标所在的首都丢了，updateStats会自动迁移首都
+          updateStats();
+          updateLabels();
+        }
+      }
+    }
+
+    function eliminateFaction(loserId, winnerId) {
+      let loser = factions[loserId]; let winner = factions[winnerId];
+      loser.isAlive = false;
+      addLog(`【灭国】${winner.name} 彻底消灭 ${loser.name}！`, "log-war");
+      if (loser.domListItem) loser.domListItem.classList.add("dead");
+      if (loser.domLabel) loser.domLabel.style.display = "none";
+      for (let p of provinces) {
+        if (p.owner === loserId) {
+          p.owner = winnerId; p.army = Math.floor(p.army / 3); p.soldiers = []; p.streamingTargetId = -1;
+        }
+      }
+      for (let s of activeParticles) { if (s.attackerId === loserId) s.attackerId = winnerId; }
+      mapDirty = true;
+    }
+
+    function draw() {
+      if (mapDirty) { redrawMapCache(); mapDirty = false; }
+      ctx.drawImage(mapCacheCanvas, 0, 0);
+
+      // 地图图标更大更清晰
+      let iconSize = Math.max(18, Math.floor(CONFIG.mapWidth / 40));
+      ctx.font = `bold ${iconSize}px Segoe UI Emoji`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      for (let p of provinces) {
+        if (p.isLand && p.type.icon && !p.isCapital) {
+          // 优化的图标显示
+          ctx.shadowColor = "rgba(0,0,0,0.8)";
+          ctx.shadowBlur = 6;
+          ctx.shadowOffsetX = 1;
+          ctx.shadowOffsetY = 1;
+          ctx.fillStyle = "rgba(255,255,255,0.95)";
+          ctx.fillText(p.type.icon, p.vx, p.vy);
+          ctx.shadowBlur = 0;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 0;
+        }
+        // 在首都画光环 - 更大更明显
+        if (p.isCapital && p.owner !== null) {
+          let f = factions[p.owner];
+          let pulse = (Math.sin(tick * 0.1) + 1) * 0.5;
+          let baseRadius = Math.max(12, Math.floor(CONFIG.mapWidth / 60));
+
+          // 外层光环
+          ctx.beginPath();
+          ctx.arc(p.vx, p.vy, baseRadius + pulse * 6, 0, Math.PI * 2);
+          ctx.fillStyle = f.lightColor;
+          ctx.globalAlpha = 0.25 + pulse * 0.15;
+          ctx.fill();
+
+          // 内层核心
+          ctx.beginPath();
+          ctx.arc(p.vx, p.vy, baseRadius * 0.6, 0, Math.PI * 2);
+          ctx.fillStyle = f.color;
+          ctx.globalAlpha = 0.6;
+          ctx.fill();
+
+          ctx.globalAlpha = 1.0;
+        }
+      }
+      drawParticles();
+      for (let t of floatingTexts) t.draw(ctx);
+    }
+
+    function redrawMapCache() {
+      if (!pixelMap) return;
+      const width = CONFIG.mapWidth; const height = CONFIG.mapHeight;
+      const imgData = mapCacheCtx.createImageData(width, height); const data = imgData.data;
+      const SEA_R = 20, SEA_G = 30, SEA_B = 40; const BASE_R = 180, BASE_G = 180, BASE_B = 180;
+
+      for (let i = 0; i < pixelMap.length; i++) {
+        let provId = pixelMap[i];
+        let r, g, b;
+        let y = Math.floor(i / width);
+        let x = i % width;
+
+        if (provId === 65535) {
+          // 海洋纹理
+          let seaNoise = Noise.simplex2(x * 0.05, y * 0.05);
+          r = SEA_R + seaNoise * 5;
+          g = SEA_G + seaNoise * 5;
+          b = SEA_B + seaNoise * 10;
+        } else {
+          let prov = provinces[provId];
+          let textureMod = 0;
+
+          // 地形纹理生成
+          if (prov.type.id === 'farm') {
+            // 农田：规整的条纹/噪点
+            // let n = (Math.sin(x * 0.3) + Math.sin(y * 0.3)) * 0.5; // 网格
+            let n = Noise.simplex2(x * 0.4, y * 0.4); // 细碎噪点
+            textureMod = n * 8;
+          } else if (prov.type.id === 'city') {
+            // 城市：方块感，高频
+            let n = Math.abs(Noise.simplex2(x * 0.1, y * 0.1));
+            if (n > 0.4) textureMod = -10; // 街区暗色
+            else textureMod = 5;
+          } else if (prov.type.id === 'fort') {
+            // 关隘/山地：粗糙，高对比度
+            let n = Noise.simplex2(x * 0.03, y * 0.03);
+            textureMod = n * 15 - 5;
+          } else {
+            // 荒野：平滑
+            let n = Noise.simplex2(x * 0.02, y * 0.02);
+            textureMod = n * 5;
+          }
+
+          if (prov.owner !== null) {
+            let f = factions[prov.owner]; let c = hexToRgb(f.color);
+            // 混合势力颜色与基础地形色，保留更多饱和度
+            r = Math.floor(c.r * 0.4 + BASE_R * 0.6) + textureMod;
+            g = Math.floor(c.g * 0.4 + BASE_G * 0.6) + textureMod;
+            b = Math.floor(c.b * 0.4 + BASE_B * 0.6) + textureMod;
+          } else {
+            // 无主之地，更显现地形特征
+            r = BASE_R - 40 + textureMod;
+            g = BASE_G - 40 + textureMod;
+            b = BASE_B - 40 + textureMod;
+          }
+
+          // 边界线加强 - 更清晰的边界效果
+          let isBorder = false;
+          let isOuterBorder = false; // 是否为外边界（与海洋相邻）
+          // 简单的十字采样检查边界
+          let checkOffsets = [1, -1, width, -width];
+          for (let off of checkOffsets) {
+            let neighborIdx = i + off;
+            if (neighborIdx >= 0 && neighborIdx < pixelMap.length) {
+              if (pixelMap[neighborIdx] !== provId) {
+                isBorder = true;
+                if (pixelMap[neighborIdx] === 65535) isOuterBorder = true;
+                break;
+              }
+            }
+          }
+
+          if (isBorder) {
+            if (isOuterBorder) {
+              // 外边界（海岸线）：更深的阴影
+              r *= 0.55; g *= 0.55; b *= 0.55;
+            } else {
+              // 内边界（省界）：中等阴影
+              r *= 0.70; g *= 0.70; b *= 0.70;
+            }
+          }
+        }
+        let idx = i * 4;
+        data[idx] = Math.max(0, Math.min(255, r));
+        data[idx + 1] = Math.max(0, Math.min(255, g));
+        data[idx + 2] = Math.max(0, Math.min(255, b));
+        data[idx + 3] = 255;
+      }
+      mapCacheCtx.putImageData(imgData, 0, 0);
+    }
+
+    function drawParticles() {
+      ctx.lineWidth = 1;
+      for (let s of activeParticles) {
+        if (s.history.length > 1) {
+          ctx.strokeStyle = s.color; ctx.globalAlpha = 0.4; ctx.beginPath();
+          ctx.moveTo(s.history[0].x, s.history[0].y);
+          for (let k = 1; k < s.history.length; k++) ctx.lineTo(s.history[k].x, s.history[k].y);
+          ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 1.0;
+      for (let p of provinces) {
+        ctx.fillStyle = p.owner !== null ? factions[p.owner].darkColor : "#555";
+        for (let s of p.soldiers) ctx.fillRect(Math.floor(s.x), Math.floor(s.y), 2, 2);
+      }
+      for (let s of activeParticles) {
+        ctx.fillStyle = s.state === STATE_COMBAT ? "#fff" : s.color;
+        ctx.fillRect(Math.floor(s.x), Math.floor(s.y), 3, 3);
+      }
+      for (let e of explosions) e.draw(ctx);
+    }
+
+    function hexToRgb(hex) {
+      var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 0, g: 0, b: 0 };
+    }
+
+    // 数值格式化：百万、亿
+    function formatNumber(num) {
+      if (num >= 100000000) return (num / 100000000).toFixed(2) + "亿";
+      if (num >= 10000) return (num / 10000).toFixed(1) + "万";
+      return Math.floor(num);
+    }
+
+    function updateStats() {
+      factions.forEach((f) => {
+        f.tiles = 0; f.armyTotal = 0; f.sumX = 0; f.sumY = 0;
+        f.stats.growth = 0; f.stats.cities = 0; f.stats.farms = 0; f.stats.forts = 0;
+        f.stats.totalSupply = 0;
+      });
+
+      // 统计
+      for (let p of provinces) {
+        if (p.isLand && p.owner !== null) {
+          let f = factions[p.owner];
+          f.tiles++;
+          f.armyTotal += p.army;
+          f.sumX += p.cx; f.sumY += p.cy;
+
+          // 计算承载力总和
+          let cap = p.type.maxSupply;
+          if (p.isCapital) cap *= 2;
+          f.stats.totalSupply += cap;
+
+          // 计算理论增长
+          let growth = CONFIG.armyGrowthBase * p.type.growth;
+          if (f.strategy === STRATEGIES.RECOVER) growth *= 1.5;
+          if (p.isCapital) growth += CONFIG.armyGrowthCapital;
+          // 只有未满员才算有效增长
+          if (p.army < cap) f.stats.growth += growth;
+
+          if (p.type.id === 'city') f.stats.cities++;
+          else if (p.type.id === 'farm') f.stats.farms++;
+          else if (p.type.id === 'fort') f.stats.forts++;
+        }
+      }
+      // 统计在途兵力
+      for (let s of activeParticles) {
+        if (factions[s.attackerId] && factions[s.attackerId].isAlive)
+          factions[s.attackerId].armyTotal += CONFIG.particleRatio;
+      }
+
+      // 更新UI与动态首都
+      factions.forEach((f) => {
+        if (f.tiles > 0) {
+          // 1. 计算几何中心
+          f.centerX = f.sumX / f.tiles;
+          f.centerY = f.sumY / f.tiles;
+
+          // 2. 核心修正：寻找离几何中心最近的领土作为“新首都”
+          let bestDist = Infinity;
+          let bestProv = null;
+          for (let p of provinces) {
+            if (p.owner === f.id) {
+              let d = (p.cx - f.centerX) ** 2 + (p.cy - f.centerY) ** 2;
+              if (d < bestDist) { bestDist = d; bestProv = p; }
+            }
+          }
+          // 更新首都状态
+          if (bestProv) {
+            if (f.capitalProv && f.capitalProv !== bestProv) f.capitalProv.isCapital = false;
+            f.capitalProv = bestProv;
+            bestProv.isCapital = true;
+          }
+        }
+
+        const tilesSpan = document.getElementById(`stat-tiles-${f.id}`);
+        if (tilesSpan) {
+          tilesSpan.innerText = f.tiles;
+          let armyEl = document.getElementById(`stat-army-${f.id}`);
+          if (armyEl) armyEl.innerText = formatNumber(f.armyTotal * CONFIG.displayScale);
+
+          let growthEl = document.getElementById(`stat-growth-${f.id}`);
+          let estimatedMonthlyGrowth = f.stats.growth * 3 * 0.3 * CONFIG.displayScale;
+          if (growthEl) growthEl.innerText = "+" + formatNumber(estimatedMonthlyGrowth) + "/月";
+
+          // 资源显示
+          let cityEl = document.getElementById(`stat-cities-${f.id}`);
+          if (cityEl) cityEl.innerText = f.stats.cities;
+
+          let farmEl = document.getElementById(`stat-farms-${f.id}`);
+          if (farmEl) farmEl.innerText = f.stats.farms;
+
+          let fortEl = document.getElementById(`stat-forts-${f.id}`);
+          if (fortEl) fortEl.innerText = f.stats.forts;
+
+          let barEl = document.getElementById(`stat-bar-${f.id}`);
+          if (barEl) barEl.style.width = `${(f.tiles / totalLandProvinces) * 100}%`;
+
+          // 人口/供给显示
+          let supplyEl = document.getElementById(`stat-supply-${f.id}`);
+          let supplyDisplay = f.stats.totalSupply * CONFIG.displayScale;
+          if (supplyEl) supplyEl.innerText = (supplyDisplay / 10000).toFixed(1);
+
+          let supplyPct = f.stats.totalSupply > 0 ? Math.min(100, (f.armyTotal / f.stats.totalSupply) * 100) : 0;
+          let sBar = document.getElementById(`stat-supply-bar-${f.id}`);
+
+          // 修复潜在的 sBar 未找到错误
+          if (sBar) {
+            sBar.style.width = `${supplyPct}%`;
+            sBar.className = 'progress-bar'; // reset
+            if (supplyPct > 90) sBar.classList.add('danger');
+            else if (supplyPct > 75) sBar.classList.add('warning');
+          }
+        }
+      });
+    }
+
+    function updateLabels() {
+      factions.forEach((f) => {
+        if (!f.domLabel) return;
+        if (f.isAlive && f.tiles > 0 && f.capitalProv) {
+          f.domLabel.style.display = "flex";
+          // 国标跟随动态首都
+          let leftPct = (f.capitalProv.vx / CONFIG.mapWidth) * 100;
+          let topPct = (f.capitalProv.vy / CONFIG.mapHeight) * 100;
+          f.domLabel.style.left = `${leftPct}%`;
+          f.domLabel.style.top = `${topPct}%`;
+        } else { f.domLabel.style.display = "none"; }
+      });
+    }
+
+    function checkWinCondition() {
+      let alive = factions.filter((f) => f.isAlive);
+      if (alive.length === 1 && !isPaused && speedMult > 0) {
+        isPaused = true; speedMult = 0;
+        addLog(`【大一统】${alive[0].name} 平定天下，万国来朝！`, "log-win");
+        updateSpeedBtns();
+      }
+    }
+    function setSpeed(s) {
+      speedMult = s;
+      if (s === 0) isPaused = true;
+      else { if (isPaused) { isPaused = false; gameLoop(); } }
+      updateSpeedBtns();
+    }
+    function updateSpeedBtns() {
+      const btns = document.querySelectorAll(".speed-btn");
+      btns.forEach((b) => b.classList.remove("active"));
+      if (speedMult === 1) btns[0].classList.add("active");
+      else if (speedMult === 4) btns[1].classList.add("active");
+      else if (speedMult === 10) btns[2].classList.add("active");
+      else btns[3].classList.add("active");
+    }
+    function addLog(msg, cls) {
+      const div = document.createElement("div");
+      div.className = `log-entry ${cls || ""}`;
+      div.innerHTML = `<span class="log-year">前${year}年</span><span class="log-content">${msg}</span>`;
+      logContainer.prepend(div);
+      if (logContainer.children.length > 30) logContainer.lastChild.remove();
+    }
+    function triggerRandomEvent() {
+      let alive = factions.filter((f) => f.isAlive);
+      if (!alive.length) return;
+      let f = alive[Math.floor(Math.random() * alive.length)];
+      let evt = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+      if (evt.type === "good") {
+        if (f.capitalProv) f.capitalProv.army += 300;
+        addLog(`${f.name} ${evt.text}`, "log-event");
+        showActionFeedback(f.centerX, f.centerY, "吉兆!", "#66bb6a");
+        f.say(evt.bubble, "event");
+      } else {
+        for (let p of provinces) { if (p.owner === f.id && Math.random() < 0.3) p.army *= 0.8; }
+        addLog(`${f.name} ${evt.text}`, "log-bad");
+        showActionFeedback(f.centerX, f.centerY, "灾祸!", "#ef5350");
+        f.say(evt.bubble, "bad");
+      }
+    }
+    function getMapCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      const x = Math.floor(((e.clientX - rect.left) / rect.width) * CONFIG.mapWidth);
+      const y = Math.floor(((e.clientY - rect.top) / rect.height) * CONFIG.mapHeight);
+      return { x, y, cx: e.clientX, cy: e.clientY };
+    }
+    function handleHover(e) {
+      if (!pixelMap) return;
+      const { x, y, cx, cy } = getMapCoords(e);
+      if (x >= 0 && x < CONFIG.mapWidth && y >= 0 && y < CONFIG.mapHeight) {
+        let idx = y * CONFIG.mapWidth + x; let provId = pixelMap[idx];
+        tooltip.style.display = "block";
+        let ttX = cx + 15; let ttY = cy + 15;
+        if (ttX > window.innerWidth - 180) ttX -= 180;
+        tooltip.style.left = ttX + "px"; tooltip.style.top = ttY + "px";
+        if (provId === 65535) tooltip.innerHTML = `<div style="color:#888;padding:5px;">苍茫大海</div>`;
+        else {
+          let p = provinces[provId]; let f = p.owner !== null ? factions[p.owner] : null;
+          let header = f ? `<span style="color:${f.lightColor};font-weight:bold">${f.name}</span>` : `<span style="color:#888">蛮荒之地</span>`;
+          let typeColor = p.type.id === 'farm' ? '#66bb6a' : (p.type.id === 'city' ? '#ffd700' : '#ccc');
+
+          // Tooltip 数值也乘以倍率
+          let armyDisplay = Math.floor(p.army * CONFIG.displayScale);
+          let growthDisplay = (p.type.growth * CONFIG.armyGrowthBase * CONFIG.displayScale).toFixed(0);
+          let supplyDisplay = (p.type.maxSupply * (p.isCapital ? 2 : 1) * CONFIG.displayScale);
+
+          tooltip.innerHTML = `
+              <div class="tt-header">${header} <span class="prov-badge" style="border:1px solid ${typeColor};color:${typeColor}">${p.type.name}</span></div>
+              <div class="tt-row"><span>驻军</span> <span class="tt-val">${formatNumber(armyDisplay)}</span></div>
+              <div class="tt-row"><span>上限</span> <span class="tt-val" style="color:#888">${formatNumber(supplyDisplay)}</span></div>
+              <div class="tt-row"><span>防御</span> <span class="tt-val">${p.type.def}x</span></div>
+              <div class="tt-row"><span>征兵</span> <span class="tt-val">+${growthDisplay}/旬</span></div>
+              <div class="hint-text">右键: 天赐神兵 / Shift+右键: 天降正义</div>
+            `;
+        }
+      } else { tooltip.style.display = "none"; }
+    }
+    function handleClick(e) {
+      const { x, y } = getMapCoords(e);
+      if (x < 0 || x >= CONFIG.mapWidth || y < 0 || y >= CONFIG.mapHeight) return;
+      let idx = y * CONFIG.mapWidth + x; let provId = pixelMap[idx];
+      if (provId === 65535) return;
+      let p = provinces[provId];
+      if (e.shiftKey) {
+        p.army = Math.max(0, p.army - 500);
+        explosions.push(new Explosion(x, y, "#ef5350"));
+        showActionFeedback(x, y, "天罚!", "#ef5350");
+      } else if (e.altKey || e.button === 2) {
+        p.army += 500;
+        explosions.push(new Explosion(x, y, "#66bb6a"));
+        showActionFeedback(x, y, "天赐!", "#66bb6a");
+      }
+    }
+    window.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const { x, y } = getMapCoords(e);
+      if (x < 0 || x >= CONFIG.mapWidth || y < 0 || y >= CONFIG.mapHeight) return;
+      let idx = y * CONFIG.mapWidth + x; let provId = pixelMap[idx];
+      if (provId === 65535) return;
+      let p = provinces[provId];
+      p.army += 500;
+      explosions.push(new Explosion(x, y, "#ffd700"));
+      showActionFeedback(x, y, "天赐神兵!", "#ffd700");
+    });
+    function showActionFeedback(x, y, text, color) {
+      const el = document.createElement("div");
+      el.className = "action-feedback"; el.innerText = text; el.style.color = color;
+      let rect = canvas.getBoundingClientRect();
+      let sx = (x / CONFIG.mapWidth) * rect.width; let sy = (y / CONFIG.mapHeight) * rect.height;
+      el.style.left = sx + "px"; el.style.top = sy + "px";
+      document.getElementById("game-stage").appendChild(el); setTimeout(() => el.remove(), 1000);
+    }
+  </script>
+</body>
+
+</html>
