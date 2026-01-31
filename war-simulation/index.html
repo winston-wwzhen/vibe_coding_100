@@ -742,6 +742,164 @@
         opacity: 0;
       }
     }
+
+    /* 移动端适配 */
+    @media (max-width: 768px) {
+      body {
+        font-size: 14px;
+      }
+
+      #game-container {
+        flex-direction: column;
+      }
+
+      /* 左侧面板 - 改为底部抽屉 */
+      #left-panel {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        min-width: unset;
+        max-width: unset;
+        height: auto;
+        max-height: 60vh;
+        border-right: none;
+        border-top: 1px solid var(--border-color);
+        border-radius: 16px 16px 0 0;
+        padding: 12px;
+        z-index: 100;
+        transform: translateY(calc(100% - 50px));
+        transition: transform 0.3s ease;
+      }
+
+      #left-panel.expanded {
+        transform: translateY(0);
+      }
+
+      .panel-title {
+        font-size: 1rem;
+        padding-bottom: 8px;
+        margin-bottom: 8px;
+      }
+
+      .panel-title::after {
+        content: ' ▲';
+        font-size: 0.7rem;
+        margin-left: 8px;
+      }
+
+      #left-panel.expanded .panel-title::after {
+        content: ' ▼';
+      }
+
+      .controls {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+
+      .speed-control {
+        flex: 1;
+        gap: 4px;
+      }
+
+      .speed-btn {
+        min-width: 40px;
+        padding: 8px 2px;
+        font-size: 0.75rem;
+      }
+
+      .btn {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+        min-width: 80px;
+      }
+
+      /* 策略按钮隐藏或缩小 */
+      .strategy-help-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 0.8rem;
+      }
+
+      .strategy-popup {
+        left: 30px;
+        min-width: 180px;
+        font-size: 0.8rem;
+      }
+
+      /* 右侧面板 - 改为顶部覆盖层 */
+      #right-panel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: auto;
+        min-width: unset;
+        max-width: unset;
+        height: auto;
+        max-height: 50vh;
+        border-left: none;
+        border-bottom: 1px solid var(--border-color);
+        border-radius: 0 0 0 16px;
+        padding: 8px 12px;
+        z-index: 100;
+        transform: translateX(calc(100% - 40px));
+        transition: transform 0.3s ease;
+      }
+
+      #right-panel.expanded {
+        transform: translateX(0);
+      }
+
+      .log-panel-header {
+        font-size: 0.85rem;
+        padding: 4px;
+        margin-bottom: 6px;
+      }
+
+      .log-panel-header::after {
+        content: ' ◀';
+        font-size: 0.7rem;
+        margin-left: 6px;
+      }
+
+      #right-panel.expanded .log-panel-header::after {
+        content: ' ▶';
+      }
+
+      #log-container {
+        font-size: 0.75rem;
+        padding: 6px;
+        max-height: 40vh;
+      }
+
+      /* 中间游戏区域全屏 */
+      #center-stage {
+        width: 100%;
+        height: 100%;
+      }
+
+      #game-stage {
+        max-width: 100%;
+        max-height: 100%;
+      }
+
+      /* 年份显示缩小 */
+      #year-display {
+        font-size: 1rem !important;
+        padding: 4px 16px !important;
+        top: 10px !important;
+      }
+
+      /* 势力标签缩小 */
+      .faction-label {
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
+      }
+    }
   </style>
 </head>
 
@@ -1130,9 +1288,37 @@
       canvas.addEventListener("mousedown", handleClick);
       canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
+      // 移动端面板交互
+      setupMobilePanels();
+
       resizeCanvas();
       initGame();
     };
+
+    // 移动端面板交互
+    function setupMobilePanels() {
+      const leftPanel = document.getElementById("left-panel");
+      const rightPanel = document.getElementById("right-panel");
+
+      // 左侧面板点击展开/收起
+      if (leftPanel) {
+        leftPanel.addEventListener("click", (e) => {
+          // 只在标题区域或面板边缘触发
+          if (e.target.closest(".panel-title") || e.target === leftPanel) {
+            leftPanel.classList.toggle("expanded");
+          }
+        });
+      }
+
+      // 右侧面板点击展开/收起
+      if (rightPanel) {
+        rightPanel.addEventListener("click", (e) => {
+          if (e.target.closest(".log-panel-header") || e.target === rightPanel) {
+            rightPanel.classList.toggle("expanded");
+          }
+        });
+      }
+    }
 
     function resizeCanvas() {
       const aspect = CONFIG.mapWidth / CONFIG.mapHeight;
