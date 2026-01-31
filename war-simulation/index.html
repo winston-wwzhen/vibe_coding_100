@@ -763,34 +763,43 @@
         min-width: unset;
         max-width: unset;
         height: auto;
-        max-height: 60vh;
+        max-height: 70vh;
         border-right: none;
-        border-top: 1px solid var(--border-color);
+        border-top: 2px solid var(--accent-color);
         border-radius: 16px 16px 0 0;
-        padding: 12px;
+        padding: 10px;
         z-index: 100;
-        transform: translateY(calc(100% - 50px));
+        transform: translateY(calc(100% - 45px));
         transition: transform 0.3s ease;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
       }
 
       #left-panel.expanded {
         transform: translateY(0);
       }
 
-      .panel-title {
-        font-size: 1rem;
-        padding-bottom: 8px;
+      .panel-header {
         margin-bottom: 8px;
       }
 
+      .panel-title {
+        font-size: 0.95rem;
+        padding-bottom: 6px;
+        margin-bottom: 6px;
+        cursor: pointer;
+        user-select: none;
+      }
+
       .panel-title::after {
-        content: ' ▲';
-        font-size: 0.7rem;
-        margin-left: 8px;
+        content: ' ▲ 点击展开';
+        font-size: 0.65rem;
+        color: var(--accent-color);
+        margin-left: 6px;
+        opacity: 0.8;
       }
 
       #left-panel.expanded .panel-title::after {
-        content: ' ▼';
+        content: ' ▼ 点击收起';
       }
 
       .controls {
@@ -801,52 +810,92 @@
       }
 
       .speed-control {
-        flex: 1;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
         gap: 4px;
+        width: 100%;
+        margin-bottom: 6px;
       }
 
       .speed-btn {
-        min-width: 40px;
-        padding: 8px 2px;
-        font-size: 0.75rem;
+        min-width: unset;
+        padding: 10px 4px;
+        font-size: 0.8rem;
+        border-radius: 6px;
       }
 
       .btn {
-        padding: 8px 12px;
-        font-size: 0.8rem;
-        min-width: 80px;
+        width: 100%;
+        padding: 10px;
+        font-size: 0.85rem;
       }
 
-      /* 策略按钮隐藏或缩小 */
+      /* 隐藏策略按钮 */
       .strategy-help-btn {
-        width: 24px;
-        height: 24px;
-        font-size: 0.8rem;
+        display: none;
       }
 
-      .strategy-popup {
-        left: 30px;
-        min-width: 180px;
-        font-size: 0.8rem;
+      /* 势力卡片 - 紧凑模式 */
+      .stats-panel {
+        gap: 8px;
       }
 
-      /* 右侧面板 - 改为顶部覆盖层 */
+      .faction-item {
+        padding: 8px;
+        min-height: unset;
+        height: auto;
+      }
+
+      .faction-header-compact {
+        margin-bottom: 3px;
+      }
+
+      .sidebar-avatar {
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+      }
+
+      .faction-name {
+        font-size: 0.9rem;
+      }
+
+      .army-display-compact {
+        font-size: 0.95rem;
+      }
+
+      .info-row-2 {
+        font-size: 0.7rem;
+        gap: 6px;
+      }
+
+      .faction-footer-compact {
+        padding: 3px 5px;
+      }
+
+      .res-compact-row {
+        font-size: 0.7rem;
+        gap: 6px;
+      }
+
+      /* 右侧面板 - 改为右上角覆盖层 */
       #right-panel {
         position: absolute;
         top: 0;
         right: 0;
-        width: auto;
+        width: 80%;
+        max-width: 280px;
         min-width: unset;
-        max-width: unset;
         height: auto;
-        max-height: 50vh;
-        border-left: none;
-        border-bottom: 1px solid var(--border-color);
+        max-height: 60vh;
+        border-left: 2px solid var(--accent-color);
+        border-top: none;
         border-radius: 0 0 0 16px;
-        padding: 8px 12px;
+        padding: 8px 10px;
         z-index: 100;
-        transform: translateX(calc(100% - 40px));
+        transform: translateX(100%);
         transition: transform 0.3s ease;
+        box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
       }
 
       #right-panel.expanded {
@@ -857,22 +906,31 @@
         font-size: 0.85rem;
         padding: 4px;
         margin-bottom: 6px;
+        cursor: pointer;
+        user-select: none;
+        position: relative;
       }
 
-      .log-panel-header::after {
-        content: ' ◀';
+      .log-panel-header::before {
+        content: '◀ ';
+        color: var(--accent-color);
         font-size: 0.7rem;
-        margin-left: 6px;
       }
 
-      #right-panel.expanded .log-panel-header::after {
-        content: ' ▶';
+      #right-panel.expanded .log-panel-header::before {
+        content: '▶ ';
       }
 
       #log-container {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         padding: 6px;
-        max-height: 40vh;
+        max-height: 45vh;
+      }
+
+      .log-entry {
+        margin-bottom: 6px;
+        padding-bottom: 4px;
+        line-height: 1.3;
       }
 
       /* 中间游戏区域全屏 */
@@ -888,16 +946,87 @@
 
       /* 年份显示缩小 */
       #year-display {
-        font-size: 1rem !important;
-        padding: 4px 16px !important;
-        top: 10px !important;
+        font-size: 0.9rem !important;
+        padding: 4px 12px !important;
+        top: 8px !important;
       }
 
-      /* 势力标签缩小 */
+      /* 势力标签大幅缩小 */
       .faction-label {
-        width: 32px;
-        height: 32px;
-        font-size: 16px;
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+        border-width: 1px;
+      }
+
+      /* 地图图标缩小 */
+      canvas {
+        image-rendering: pixelated;
+      }
+    }
+
+    /* 超小屏幕适配 */
+    @media (max-width: 480px) {
+      .panel-title {
+        font-size: 0.85rem;
+      }
+
+      .speed-btn {
+        font-size: 0.7rem;
+        padding: 8px 2px;
+      }
+
+      .btn {
+        font-size: 0.75rem;
+        padding: 8px;
+      }
+
+      .faction-name {
+        font-size: 0.85rem;
+      }
+
+      .army-display-compact {
+        font-size: 0.85rem;
+      }
+
+      #year-display {
+        font-size: 0.8rem !important;
+        padding: 3px 10px !important;
+      }
+
+      .faction-label {
+        width: 20px;
+        height: 20px;
+        font-size: 10px;
+      }
+
+      /* 添加提示让用户知道有可展开的面板 */
+      #left-panel::before,
+      #right-panel::before {
+        content: '';
+        position: absolute;
+        width: 40px;
+        height: 4px;
+        background: var(--accent-color);
+        border-radius: 2px;
+        opacity: 0.6;
+      }
+
+      #left-panel::before {
+        top: 4px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      #right-panel::before {
+        top: 4px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      #right-panel::before {
+        bottom: 4px;
+        top: auto;
       }
     }
   </style>
@@ -1300,21 +1429,50 @@
       const leftPanel = document.getElementById("left-panel");
       const rightPanel = document.getElementById("right-panel");
 
-      // 左侧面板点击展开/收起
+      // 左侧面板 - 点击标题展开/收起
       if (leftPanel) {
-        leftPanel.addEventListener("click", (e) => {
-          // 只在标题区域或面板边缘触发
-          if (e.target.closest(".panel-title") || e.target === leftPanel) {
+        const panelTitle = leftPanel.querySelector(".panel-title");
+        if (panelTitle) {
+          panelTitle.addEventListener("click", (e) => {
+            e.stopPropagation();
             leftPanel.classList.toggle("expanded");
-          }
-        });
+          });
+        }
+
+        // 点击内容区域不关闭
+        const contentArea = leftPanel.querySelector(".controls, .stats-panel");
+        if (contentArea) {
+          contentArea.addEventListener("click", (e) => {
+            e.stopPropagation();
+          });
+        }
       }
 
-      // 右侧面板点击展开/收起
+      // 右侧面板 - 点击头部展开/收起
       if (rightPanel) {
-        rightPanel.addEventListener("click", (e) => {
-          if (e.target.closest(".log-panel-header") || e.target === rightPanel) {
+        const logHeader = rightPanel.querySelector(".log-panel-header");
+        if (logHeader) {
+          logHeader.addEventListener("click", (e) => {
+            e.stopPropagation();
             rightPanel.classList.toggle("expanded");
+          });
+        }
+
+        // 点击日志内容不关闭
+        const logContent = rightPanel.querySelector("#log-container");
+        if (logContent) {
+          logContent.addEventListener("click", (e) => {
+            e.stopPropagation();
+          });
+        }
+      }
+
+      // 点击游戏区域关闭所有展开的面板（移动端）
+      if (centerStage) {
+        centerStage.addEventListener("click", () => {
+          if (window.innerWidth <= 768) {
+            if (leftPanel) leftPanel.classList.remove("expanded");
+            if (rightPanel) rightPanel.classList.remove("expanded");
           }
         });
       }
@@ -1914,8 +2072,12 @@
       if (mapDirty) { redrawMapCache(); mapDirty = false; }
       ctx.drawImage(mapCacheCanvas, 0, 0);
 
-      // 地图图标更大更清晰
-      let iconSize = Math.max(18, Math.floor(CONFIG.mapWidth / 40));
+      // 地图图标大小根据设备调整
+      const isMobile = window.innerWidth <= 768;
+      let iconSize = isMobile
+        ? Math.max(12, Math.floor(CONFIG.mapWidth / 70))
+        : Math.max(18, Math.floor(CONFIG.mapWidth / 40));
+
       ctx.font = `bold ${iconSize}px Segoe UI Emoji`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -1924,7 +2086,7 @@
         if (p.isLand && p.type.icon && !p.isCapital) {
           // 优化的图标显示
           ctx.shadowColor = "rgba(0,0,0,0.8)";
-          ctx.shadowBlur = 6;
+          ctx.shadowBlur = isMobile ? 4 : 6;
           ctx.shadowOffsetX = 1;
           ctx.shadowOffsetY = 1;
           ctx.fillStyle = "rgba(255,255,255,0.95)";
@@ -1937,11 +2099,13 @@
         if (p.isCapital && p.owner !== null) {
           let f = factions[p.owner];
           let pulse = (Math.sin(tick * 0.1) + 1) * 0.5;
-          let baseRadius = Math.max(12, Math.floor(CONFIG.mapWidth / 60));
+          let baseRadius = isMobile
+            ? Math.max(8, Math.floor(CONFIG.mapWidth / 80))
+            : Math.max(12, Math.floor(CONFIG.mapWidth / 60));
 
           // 外层光环
           ctx.beginPath();
-          ctx.arc(p.vx, p.vy, baseRadius + pulse * 6, 0, Math.PI * 2);
+          ctx.arc(p.vx, p.vy, baseRadius + pulse * (isMobile ? 4 : 6), 0, Math.PI * 2);
           ctx.fillStyle = f.lightColor;
           ctx.globalAlpha = 0.25 + pulse * 0.15;
           ctx.fill();
