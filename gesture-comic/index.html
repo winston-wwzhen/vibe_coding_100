@@ -1721,7 +1721,8 @@
                 if (state.books.find(b => b.name === bookName)) continue;
 
                 const testUrl = CONFIG.booksBasePath + bookName + '/1.jpg';
-                const exists = await checkImageExists(testUrl, 1000);
+                // Use longer timeout (3000ms) for GitHub Pages
+                const exists = await checkImageExists(testUrl, 3000);
 
                 if (exists) {
                     // Add book without page count - will load on demand
