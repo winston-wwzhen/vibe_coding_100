@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>📚 手势翻页漫画书</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+    <!-- MediaPipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --bg-dark: #1a1a2e;
+            --accent-purple: #9d4edd;
+            --accent-pink: #ff6b9d;
+            --accent-glow: rgba(157, 78, 221, 0.6);
+            --text-color: #eee;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-color);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            user-select: none;
+            touch-action: none;
+        }
+
+        /* Background Canvas */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.3;
+        }
+
+        /* Loading Screen */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 26, 46, 0.98);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: opacity 0.5s ease;
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(157, 78, 221, 0.3);
+            border-top-color: var(--accent-purple);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.2rem;
+            color: var(--accent-purple);
+            margin-bottom: 10px;
+        }
+
+        .loading-status {
+            font-size: 0.9rem;
+            color: #888;
+        }
+
+        /* Main Container */
+        #main-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        /* Header */
+        .header {
+            padding: 15px 25px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            border-bottom: 1px solid rgba(157, 78, 221, 0.2);
+            gap: 15px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(157, 78, 221, 0.2);
+            border: 2px solid rgba(157, 78, 221, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.2rem;
+            color: var(--accent-purple);
+        }
+
+        .back-btn:hover {
+            background: rgba(157, 78, 221, 0.4);
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 15px var(--accent-glow);
+            transform: scale(1.1);
+        }
+
+        .header h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-info {
+            font-size: 1rem;
+            font-weight: 600;
+            background: rgba(157, 78, 221, 0.2);
+            padding: 8px 18px;
+            border-radius: 20px;
+            border: 1px solid rgba(157, 78, 221, 0.3);
+        }
+
+        /* Comic Viewer */
+        .viewer-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 20px;
+            overflow: hidden;
+            perspective: 1500px;
+        }
+
+        .comic-page {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 12px;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute;
+            will-change: transform, opacity;
+        }
+
+        .comic-page.prev {
+            transform: translateX(-100%) rotateY(-15deg) scale(0.85);
+            opacity: 0;
+            z-index: 1;
+        }
+
+        .comic-page.next {
+            transform: translateX(100%) rotateY(15deg) scale(0.85);
+            opacity: 0;
+            z-index: 1;
+        }
+
+        .comic-page.current {
+            transform: translateX(0) rotateY(0deg) scale(1);
+            opacity: 1;
+            z-index: 10;
+        }
+
+        /* Page flip animations */
+        .comic-page.slide-out-left {
+            animation: slideOutLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        .comic-page.slide-out-right {
+            animation: slideOutRight 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        .comic-page.slide-in-left {
+            animation: slideInLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        .comic-page.slide-in-right {
+            animation: slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes slideOutLeft {
+            0% {
+                transform: translateX(0) rotateY(0deg) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(-120%) rotateY(-25deg) scale(0.8);
+                opacity: 0;
+            }
+        }
+
+        @keyframes slideOutRight {
+            0% {
+                transform: translateX(0) rotateY(0deg) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(120%) rotateY(25deg) scale(0.8);
+                opacity: 0;
+            }
+        }
+
+        @keyframes slideInLeft {
+            0% {
+                transform: translateX(-120%) rotateY(-25deg) scale(0.8);
+                opacity: 0;
+            }
+            100% {
+                transform: translateX(0) rotateY(0deg) scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideInRight {
+            0% {
+                transform: translateX(120%) rotateY(25deg) scale(0.8);
+                opacity: 0;
+            }
+            100% {
+                transform: translateX(0) rotateY(0deg) scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Gesture Guide */
+        #gesture-guide {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 40px;
+            z-index: 50;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        #gesture-guide.hidden {
+            opacity: 0.3;
+        }
+
+        .gesture-hint {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            color: #aaa;
+            font-size: 0.9rem;
+            position: relative;
+        }
+
+        .gesture-icon {
+            width: 60px;
+            height: 60px;
+            background: rgba(157, 78, 221, 0.2);
+            border: 2px solid rgba(157, 78, 221, 0.4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Progress ring */
+        .gesture-icon::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border-radius: 50%;
+            background: conic-gradient(var(--accent-purple) var(--progress-pct, 0%), transparent var(--progress-pct, 0%));
+            opacity: 0;
+            transition: opacity 0.1s ease;
+            z-index: -1;
+        }
+
+        .gesture-hint.active .gesture-icon::before {
+            opacity: 1;
+        }
+
+        .gesture-hint.active .gesture-icon {
+            background: rgba(157, 78, 221, 0.5);
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 20px var(--accent-glow);
+            transform: scale(1.1);
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            padding: 15px 25px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(157, 78, 221, 0.2);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-pink));
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        /* Start Overlay */
+        #start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 26, 46, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1500;
+            transition: opacity 0.5s ease;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        #start-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .start-content {
+            text-align: center;
+            animation: fadeInUp 0.5s ease;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .start-content h2 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .start-content p {
+            font-size: 1.1rem;
+            color: #aaa;
+            margin-bottom: 30px;
+        }
+
+        /* Input styles */
+        .book-input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .book-input {
+            flex: 1;
+            padding: 12px 20px;
+            font-size: 1rem;
+            border: 2px solid rgba(157, 78, 221, 0.3);
+            border-radius: 25px;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .book-input:focus {
+            border-color: var(--accent-purple);
+        }
+
+        .book-input::placeholder {
+            color: #666;
+        }
+
+        .add-book-btn {
+            padding: 12px 20px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 25px;
+            background: var(--accent-purple);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .add-book-btn:hover {
+            background: var(--accent-pink);
+            transform: scale(1.05);
+        }
+
+        /* Book list */
+        .book-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+            width: 100%;
+        }
+
+        .book-item {
+            background: rgba(157, 78, 221, 0.1);
+            border: 2px solid rgba(157, 78, 221, 0.3);
+            border-radius: 12px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+        }
+
+        .book-item:hover {
+            background: rgba(157, 78, 221, 0.2);
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 20px var(--accent-glow);
+            transform: translateY(-3px);
+        }
+
+        .book-item.selected {
+            border-color: var(--accent-pink);
+            background: rgba(255, 107, 157, 0.2);
+            box-shadow: 0 0 20px rgba(255, 107, 157, 0.5);
+        }
+
+        .book-item .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(255, 0, 0, 0.3);
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .book-item:hover .remove-btn {
+            display: flex;
+        }
+
+        .book-item .remove-btn:hover {
+            background: rgba(255, 0, 0, 0.6);
+            transform: scale(1.1);
+        }
+
+        .book-cover {
+            width: 80px;
+            height: 100px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            overflow: hidden;
+        }
+
+        .book-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .book-info h3 {
+            font-size: 0.95rem;
+            color: #fff;
+            margin: 0;
+            word-break: break-all;
+        }
+
+        .book-info p {
+            font-size: 0.75rem;
+            color: #888;
+            margin: 3px 0 0;
+        }
+
+        .start-btn {
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 30px;
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink));
+            color: white;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            font-weight: 600;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px var(--accent-glow);
+        }
+
+        .start-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading-books {
+            text-align: center;
+            color: #888;
+        }
+
+        /* Webcam Preview */
+        #webcam-preview {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            width: 140px;
+            height: 105px;
+            border: 2px solid rgba(157, 78, 221, 0.5);
+            border-radius: 10px;
+            transform: scaleX(-1);
+            z-index: 100;
+            opacity: 0.6;
+            transition: opacity 0.3s ease;
+            display: none;
+        }
+
+        #webcam-preview.visible {
+            display: block;
+        }
+
+        #webcam-preview:hover {
+            opacity: 1;
+        }
+
+        /* Camera Toggle */
+        .camera-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            padding: 10px 15px;
+            border-radius: 25px;
+            border: 1px solid rgba(157, 78, 221, 0.3);
+        }
+
+        .camera-toggle-label {
+            color: #aaa;
+            font-size: 0.85rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: rgba(157, 78, 221, 0.3);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: var(--accent-purple);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(24px);
+        }
+
+        /* Completion Overlay */
+        #completion-overlay {
+            position: fixed;
+            top: 50%;
+            right: 30px;
+            transform: translateY(-50%);
+            width: 300px;
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border: 2px solid var(--accent-purple);
+            border-radius: 20px;
+            padding: 30px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 1800;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            animation: slideInRight 0.5s ease;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateY(-50%) translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(-50%) translateX(0);
+            }
+        }
+
+        #completion-overlay.active {
+            display: flex;
+        }
+
+        .completion-content {
+            text-align: center;
+            width: 100%;
+        }
+
+        .completion-content h2 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        .completion-content p {
+            font-size: 1.2rem;
+            color: #aaa;
+            margin-bottom: 30px;
+        }
+
+        /* Particles */
+        .particle {
+            position: fixed;
+            width: 6px;
+            height: 6px;
+            background: var(--accent-purple);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 999;
+            animation: floatAndFade 1s ease-out forwards;
+            box-shadow: 0 0 10px var(--accent-purple);
+        }
+
+        @keyframes floatAndFade {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -100px) scale(0); opacity: 0; }
+        }
+
+        /* Hand Cursor */
+        #hand-cursor {
+            position: fixed;
+            width: 25px;
+            height: 25px;
+            border: 3px solid var(--accent-purple);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1000;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 15px var(--accent-glow);
+            transition: width 0.2s, height 0.2s, background-color 0.2s;
+            display: none;
+        }
+
+        #hand-cursor.active {
+            background-color: rgba(157, 78, 221, 0.3);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                padding: 10px 15px;
+                gap: 10px;
+            }
+
+            .header-left {
+                gap: 10px;
+            }
+
+            .back-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 1rem;
+            }
+
+            .header h1 {
+                font-size: 1rem;
+            }
+
+            .page-info {
+                font-size: 0.85rem;
+                padding: 5px 12px;
+            }
+
+            #start-overlay {
+                padding: 15px;
+            }
+
+            .start-content h2 {
+                font-size: 1.5rem;
+                margin-bottom: 10px;
+            }
+
+            .start-content > p {
+                font-size: 0.9rem;
+                margin-bottom: 15px;
+            }
+
+            .book-input-container {
+                max-width: 100%;
+                margin-bottom: 15px;
+            }
+
+            .book-input {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+
+            .add-book-btn {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+
+            .book-list {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+
+            .book-item {
+                padding: 10px;
+                gap: 8px;
+            }
+
+            .book-item .remove-btn {
+                width: 20px;
+                height: 20px;
+                font-size: 12px;
+            }
+
+            .book-cover {
+                width: 60px;
+                height: 80px;
+                font-size: 1.5rem;
+            }
+
+            .book-info h3 {
+                font-size: 0.85rem;
+            }
+
+            .book-info p {
+                font-size: 0.7rem;
+            }
+
+            .start-btn {
+                padding: 12px 30px;
+                font-size: 1rem;
+            }
+
+            .start-content > p:last-child {
+                font-size: 0.75rem;
+                margin-top: 15px;
+            }
+
+            .viewer-container {
+                padding: 10px;
+            }
+
+            .comic-page {
+                border-radius: 8px;
+            }
+
+            #gesture-guide {
+                bottom: 15px;
+                gap: 20px;
+                padding: 0 10px;
+            }
+
+            .gesture-icon {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+
+            .gesture-hint {
+                font-size: 0.7rem;
+            }
+
+            .progress-container {
+                padding: 10px 15px;
+            }
+
+            .progress-bar {
+                height: 4px;
+            }
+
+            .camera-toggle {
+                bottom: 15px;
+                right: 15px;
+                padding: 8px 12px;
+            }
+
+            .camera-toggle-label {
+                font-size: 0.75rem;
+            }
+
+            .toggle-switch {
+                width: 44px;
+                height: 22px;
+            }
+
+            .toggle-switch::after {
+                width: 16px;
+                height: 16px;
+            }
+
+            .toggle-switch.active::after {
+                transform: translateX(22px);
+            }
+
+            #completion-overlay {
+                right: 10px;
+                left: 10px;
+                bottom: auto;
+                top: 50%;
+                transform: translateY(-50%);
+                width: auto;
+                max-width: 280px;
+                padding: 25px 20px;
+            }
+
+            .completion-content h2 {
+                font-size: 1.5rem;
+            }
+
+            .completion-content p {
+                font-size: 0.95rem;
+            }
+        }
+
+        /* Extra Small Devices */
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 0.9rem;
+            }
+
+            .book-list {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            #gesture-guide {
+                gap: 15px;
+            }
+
+            .gesture-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+
+            .gesture-hint {
+                font-size: 0.65rem;
+            }
+
+            .camera-toggle-label {
+                display: none;
+            }
+        }
+
+        /* Landscape Mobile */
+        @media (max-height: 600px) and (orientation: landscape) {
+            #start-overlay {
+                padding: 10px;
+            }
+
+            .start-content h2 {
+                font-size: 1.2rem;
+                margin-bottom: 8px;
+            }
+
+            .book-list {
+                margin-bottom: 10px;
+            }
+
+            .book-item {
+                padding: 8px;
+            }
+
+            .book-cover {
+                width: 50px;
+                height: 70px;
+            }
+
+            #gesture-guide {
+                bottom: 10px;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Canvas -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">资源加载中...</div>
+        <div class="loading-status" id="loading-status">0%</div>
+    </div>
+
+    <!-- Start Overlay -->
+    <div id="start-overlay">
+        <div class="start-content">
+            <h2>📚 手势翻页漫画书</h2>
+            <p>输入漫画文件夹名称（在 books 目录下）</p>
+            <div class="book-input-container">
+                <input type="text" id="book-input" class="book-input" placeholder="例如: 暗室显影" onkeypress="if(event.key==='Enter') addBook()">
+                <button class="add-book-btn" onclick="addBook()">添加</button>
+            </div>
+            <div id="book-list" class="book-list">
+                <div class="loading-books">正在扫描漫画书...</div>
+            </div>
+            <button class="start-btn" id="start-btn" disabled>选择漫画后开始</button>
+            <p style="margin-top: 20px; font-size: 0.9rem; color: #666;">
+                🖐️ 张开手掌保持开始阅读 · 左右挥手切换漫画（多本时）
+            </p>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div id="main-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <button class="back-btn" id="back-btn" title="返回选择">←</button>
+                <h1>📷 <span id="book-title">漫画书</span></h1>
+            </div>
+            <div class="page-info">
+                <span id="current-page">1</span> / <span id="total-pages">0</span>
+            </div>
+        </div>
+
+        <!-- Comic Viewer -->
+        <div class="viewer-container">
+            <img id="prev-page" class="comic-page prev" src="" alt="上一页">
+            <img id="current-page-img" class="comic-page current" src="" alt="当前页">
+            <img id="next-page" class="comic-page next" src="" alt="下一页">
+        </div>
+
+        <!-- Gesture Guide -->
+        <div id="gesture-guide" class="hidden">
+            <div class="gesture-hint" id="hint-prev">
+                <div class="gesture-icon">◀</div>
+                <span>向左挥</span>
+            </div>
+            <div class="gesture-hint" id="hint-pause">
+                <div class="gesture-icon">✊</div>
+                <span>握拳暂停</span>
+            </div>
+            <div class="gesture-hint" id="hint-next">
+                <div class="gesture-icon">▶</div>
+                <span>向右挥</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-container">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+    </div>
+
+    <!-- Webcam Preview -->
+    <video id="webcam-preview" playsinline></video>
+
+    <!-- Camera Toggle -->
+    <div class="camera-toggle" id="camera-toggle">
+        <span class="camera-toggle-label">摄像头</span>
+        <div class="toggle-switch" id="toggle-switch"></div>
+    </div>
+
+    <!-- Hand Cursor -->
+    <div id="hand-cursor"></div>
+
+    <!-- Completion Overlay -->
+    <div id="completion-overlay">
+        <div class="completion-content">
+            <h2>🎉 阅读完成！</h2>
+            <p>您已读完所有漫画内容</p>
+            <button class="start-btn" onclick="restartReading()">重新开始</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            booksBasePath: 'books/',
+            swipeThreshold: 0.15,
+            holdTime: 700,
+            zoneLeft: 0.38,
+            zoneRight: 0.62
+        };
+
+        // State
+        let state = {
+            books: [],
+            selectedBook: null,
+            images: [],
+            currentIndex: 0,
+            isLoaded: false,
+            cameraReady: false,
+            handDetected: false,
+            isReading: false,
+            isPaused: false,
+            handX: 0.5,
+            handY: 0.5,
+            lastHandX: 0.5,
+            zoneStartTime: 0,
+            currentZone: null,
+            isAnimating: false,
+            palmOpenTime: null
+        };
+
+        // DOM Elements
+        const loadingScreen = document.getElementById('loading-screen');
+        const loadingStatus = document.getElementById('loading-status');
+        const startOverlay = document.getElementById('start-overlay');
+        const startBtn = document.getElementById('start-btn');
+        const bookListEl = document.getElementById('book-list');
+        const bookInput = document.getElementById('book-input');
+        const backBtn = document.getElementById('back-btn');
+        const bookTitleEl = document.getElementById('book-title');
+        const currentPageImg = document.getElementById('current-page-img');
+        const prevPageImg = document.getElementById('prev-page');
+        const nextPageImg = document.getElementById('next-page');
+        const currentPageSpan = document.getElementById('current-page');
+        const totalPagesSpan = document.getElementById('total-pages');
+        const progressFill = document.getElementById('progress-fill');
+        const handCursor = document.getElementById('hand-cursor');
+        const gestureGuide = document.getElementById('gesture-guide');
+        const hintPrev = document.getElementById('hint-prev');
+        const hintNext = document.getElementById('hint-next');
+        const hintPause = document.getElementById('hint-pause');
+        const completionOverlay = document.getElementById('completion-overlay');
+        const webcamPreview = document.getElementById('webcam-preview');
+        const toggleSwitch = document.getElementById('toggle-switch');
+
+        // Initialize Background
+        function initBackground() {
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+
+            let width, height, particles = [];
+
+            function resize() {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                canvas.width = width;
+                canvas.height = height;
+                particles = [];
+                for (let i = 0; i < 50; i++) {
+                    particles.push({
+                        x: Math.random() * width,
+                        y: Math.random() * height,
+                        size: Math.random() * 2 + 1,
+                        speedX: (Math.random() - 0.5) * 0.5,
+                        speedY: (Math.random() - 0.5) * 0.5,
+                        opacity: Math.random() * 0.5 + 0.2
+                    });
+                }
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, width, height);
+
+                particles.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(157, 78, 221, ${p.opacity})`;
+                    ctx.fill();
+
+                    p.x += p.speedX;
+                    p.y += p.speedY;
+
+                    if (p.x < 0) p.x = width;
+                    if (p.x > width) p.x = 0;
+                    if (p.y < 0) p.y = height;
+                    if (p.y > height) p.y = 0;
+                });
+
+                requestAnimationFrame(animate);
+            }
+
+            window.addEventListener('resize', resize);
+            resize();
+            animate();
+        }
+
+        // Add a book manually
+        window.addBook = async function() {
+            const folderName = bookInput.value.trim();
+            if (!folderName) return;
+
+            const testUrl = CONFIG.booksBasePath + folderName + '/1.png';
+            const exists = await checkImageExists(testUrl);
+
+            if (!exists) {
+                alert(`未找到漫画文件夹: ${folderName}\n请确保该文件夹存在于 books 目录下，并且包含 1.png 文件`);
+                return;
+            }
+
+            if (state.books.find(b => b.name === folderName)) {
+                alert('该漫画已添加');
+                return;
+            }
+
+            let pageCount = 0;
+            for (let i = 1; i <= 200; i++) {
+                const url = CONFIG.booksBasePath + folderName + '/' + i + '.png';
+                const pageExists = await checkImageExists(url);
+                if (pageExists) {
+                    pageCount++;
+                } else if (pageCount > 0) {
+                    break;
+                } else if (i > 10) {
+                    break;
+                }
+            }
+
+            const book = {
+                name: folderName,
+                path: CONFIG.booksBasePath + folderName + '/',
+                cover: testUrl,
+                pageCount: pageCount
+            };
+
+            state.books.push(book);
+            renderBookList(state.books);
+            bookInput.value = '';
+
+            if (state.books.length === 1) {
+                selectBook(0);
+            }
+        };
+
+        // Remove a book
+        window.removeBook = function(index, event) {
+            event.stopPropagation();
+            state.books.splice(index, 1);
+
+            if (state.selectedBook) {
+                const stillExists = state.books.find(b => b.name === state.selectedBook.name);
+                if (!stillExists) {
+                    state.selectedBook = null;
+                    startBtn.disabled = true;
+                    startBtn.textContent = '选择漫画后开始';
+                }
+            }
+
+            renderBookList(state.books);
+        };
+
+        // Check if image exists
+        function checkImageExists(url) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(true);
+                img.onerror = () => resolve(false);
+                img.src = url;
+                setTimeout(() => resolve(false), 1000);
+            });
+        }
+
+        // Render book list
+        function renderBookList(books) {
+            if (books.length === 0) {
+                bookListEl.innerHTML = '<div class="loading-books">暂无漫画，请添加漫画文件夹</div>';
+                return;
+            }
+
+            bookListEl.innerHTML = books.map((book, index) => `
+                <div class="book-item ${state.selectedBook && state.selectedBook.name === book.name ? 'selected' : ''}" data-index="${index}" onclick="selectBook(${index})">
+                    <button class="remove-btn" onclick="removeBook(${index}, event)" title="删除">×</button>
+                    <div class="book-cover">
+                        <img src="${book.cover}" alt="${book.name}" onerror="this.style.display='none'; this.parentElement.textContent='📖'">
+                    </div>
+                    <div class="book-info">
+                        <h3>${book.name}</h3>
+                        <p>${book.pageCount} 页</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Select a book
+        window.selectBook = function(index) {
+            const book = state.books[index];
+            state.selectedBook = book;
+
+            document.querySelectorAll('.book-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            document.querySelector(`.book-item[data-index="${index}"]`).classList.add('selected');
+
+            startBtn.disabled = false;
+            startBtn.textContent = `开始阅读《${book.name}》`;
+        };
+
+        // Load Images
+        async function loadImages() {
+            if (!state.selectedBook) return;
+
+            const maxImages = 200;
+            let loaded = 0;
+            let failed = 0;
+            const basePath = state.selectedBook.path;
+
+            for (let i = 1; i <= maxImages; i++) {
+                const img = new Image();
+                const url = basePath + i + '.png';
+
+                const promise = new Promise((resolve) => {
+                    img.onload = () => {
+                        state.images.push(url);
+                        loaded++;
+                        updateProgress(loaded + failed, i);
+                        resolve(true);
+                    };
+                    img.onerror = () => {
+                        failed++;
+                        if (failed > 5 && loaded === 0) {
+                            resolve(false);
+                        } else if (failed > 3 && loaded > 0) {
+                            resolve(false);
+                        } else {
+                            resolve(true);
+                        }
+                    };
+                    img.src = url;
+                });
+
+                const shouldContinue = await promise;
+                if (!shouldContinue) break;
+            }
+
+            if (state.images.length > 0) {
+                state.isLoaded = true;
+                totalPagesSpan.textContent = state.images.length;
+                hideLoading();
+            } else {
+                loadingStatus.textContent = '未找到图片文件';
+            }
+        }
+
+        function updateProgress(current, total) {
+            const progress = Math.round((current / total) * 100);
+            loadingStatus.textContent = `${progress}%`;
+        }
+
+        function hideLoading() {
+            loadingScreen.classList.add('hidden');
+        }
+
+        // Update Page Display
+        function updatePages() {
+            if (state.currentIndex < state.images.length) {
+                currentPageImg.src = state.images[state.currentIndex];
+                currentPageSpan.textContent = state.currentIndex + 1;
+
+                const progress = ((state.currentIndex + 1) / state.images.length) * 100;
+                progressFill.style.width = `${progress}%`;
+            }
+
+            if (state.currentIndex > 0) {
+                prevPageImg.src = state.images[state.currentIndex - 1];
+            } else {
+                prevPageImg.src = '';
+            }
+
+            if (state.currentIndex < state.images.length - 1) {
+                nextPageImg.src = state.images[state.currentIndex + 1];
+            } else {
+                nextPageImg.src = '';
+            }
+        }
+
+        // Page Navigation
+        function goToNextPage() {
+            if (state.isAnimating || state.currentIndex >= state.images.length - 1) return;
+
+            state.isAnimating = true;
+
+            currentPageImg.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right');
+
+            const nextUrl = state.images[state.currentIndex + 1];
+            nextPageImg.src = nextUrl;
+            nextPageImg.classList.remove('prev', 'next', 'current');
+            nextPageImg.classList.add('slide-in-right');
+
+            currentPageImg.classList.remove('current');
+            currentPageImg.classList.add('slide-out-left');
+
+            setTimeout(() => {
+                state.currentIndex++;
+                updatePages();
+
+                currentPageImg.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right');
+                nextPageImg.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right');
+                currentPageImg.classList.add('current');
+                nextPageImg.classList.add('next');
+
+                state.isAnimating = false;
+
+                if (state.currentIndex === state.images.length - 1) {
+                    setTimeout(() => {
+                        completionOverlay.classList.add('active');
+                    }, 500);
+                }
+            }, 500);
+        }
+
+        function goToPrevPage() {
+            if (state.isAnimating || state.currentIndex <= 0) return;
+
+            state.isAnimating = true;
+
+            currentPageImg.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right');
+
+            const prevUrl = state.images[state.currentIndex - 1];
+            prevPageImg.src = prevUrl;
+            prevPageImg.classList.remove('prev', 'next', 'current');
+            prevPageImg.classList.add('slide-in-left');
+
+            currentPageImg.classList.remove('current');
+            currentPageImg.classList.add('slide-out-right');
+
+            setTimeout(() => {
+                state.currentIndex--;
+                updatePages();
+
+                currentPageImg.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right');
+                prevPageImg.classList.remove('slide-out-left', 'slide-out-right', 'slide-in-left', 'slide-in-right');
+                currentPageImg.classList.add('current');
+                prevPageImg.classList.add('prev');
+
+                state.isAnimating = false;
+            }, 500);
+        }
+
+        // Restart reading
+        window.restartReading = function() {
+            state.currentIndex = 0;
+            completionOverlay.classList.remove('active');
+            updatePages();
+        };
+
+        // Gesture Detection
+        function isOpenPalm(landmarks) {
+            const wrist = landmarks[0];
+            const tips = [8, 12, 16, 20];
+            let avgDist = 0;
+
+            tips.forEach(idx => {
+                const tip = landmarks[idx];
+                const d = Math.sqrt(Math.pow(tip.x - wrist.x, 2) + Math.pow(tip.y - wrist.y, 2));
+                avgDist += d;
+            });
+            avgDist /= tips.length;
+
+            return avgDist > 0.30;
+        }
+
+        function isFist(landmarks) {
+            const wrist = landmarks[0];
+            const tips = [8, 12, 16, 20];
+            let avgDist = 0;
+
+            tips.forEach(idx => {
+                const tip = landmarks[idx];
+                const d = Math.sqrt(Math.pow(tip.x - wrist.x, 2) + Math.pow(tip.y - wrist.y, 2));
+                avgDist += d;
+            });
+            avgDist /= tips.length;
+
+            return avgDist < 0.25;
+        }
+
+        function spawnParticle(x, y) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = x + 'px';
+            particle.style.top = y + 'px';
+
+            const size = 4 + Math.random() * 6;
+            particle.style.width = size + 'px';
+            particle.style.height = size + 'px';
+
+            if (Math.random() > 0.5) {
+                particle.style.background = 'var(--accent-pink)';
+                particle.style.boxShadow = '0 0 10px var(--accent-pink)';
+            }
+
+            document.body.appendChild(particle);
+            setTimeout(() => particle.remove(), 1000);
+        }
+
+        function handleGesture(landmarks) {
+            const palm = landmarks[9];
+            const x = palm.x;
+            const y = palm.y;
+
+            state.lastHandX = state.handX;
+            state.handX = x;
+            state.handY = y;
+
+            const screenX = (1 - x) * window.innerWidth;
+            const screenY = y * window.innerHeight;
+
+            handCursor.style.display = 'block';
+            handCursor.style.left = screenX + 'px';
+            handCursor.style.top = screenY + 'px';
+
+            if (Math.random() < 0.1) {
+                spawnParticle(screenX, screenY);
+            }
+
+            const palmOpen = isOpenPalm(landmarks);
+            const fist = isFist(landmarks);
+
+            // Start Screen Gestures
+            if (!state.isReading && !startOverlay.classList.contains('hidden')) {
+                if (palmOpen && state.books.length > 0) {
+                    if (!state.palmOpenTime) {
+                        state.palmOpenTime = Date.now();
+                    } else {
+                        const elapsed = Date.now() - state.palmOpenTime;
+                        if (elapsed > CONFIG.holdTime) {
+                            if (state.selectedBook) {
+                                startReading();
+                            } else if (state.books.length > 0) {
+                                selectBook(0);
+                            }
+                            state.palmOpenTime = null;
+                        }
+                    }
+                } else {
+                    state.palmOpenTime = null;
+                }
+
+                if (state.books.length > 1) {
+                    if (x < CONFIG.zoneLeft) {
+                        if (state.currentZone !== 'left') {
+                            state.currentZone = 'left';
+                            state.zoneStartTime = Date.now();
+                        } else {
+                            const elapsed = Date.now() - state.zoneStartTime;
+                            if (elapsed > CONFIG.holdTime) {
+                                const currentIndex = state.books.findIndex(b => b.name === state.selectedBook?.name);
+                                const nextIndex = (currentIndex + 1) % state.books.length;
+                                selectBook(nextIndex);
+                                state.zoneStartTime = Date.now();
+                            }
+                        }
+                    } else if (x > CONFIG.zoneRight) {
+                        if (state.currentZone !== 'right') {
+                            state.currentZone = 'right';
+                            state.zoneStartTime = Date.now();
+                        } else {
+                            const elapsed = Date.now() - state.zoneStartTime;
+                            if (elapsed > CONFIG.holdTime) {
+                                const currentIndex = state.books.findIndex(b => b.name === state.selectedBook?.name);
+                                const prevIndex = currentIndex <= 0 ? state.books.length - 1 : currentIndex - 1;
+                                selectBook(prevIndex);
+                                state.zoneStartTime = Date.now();
+                            }
+                        }
+                    } else {
+                        state.currentZone = null;
+                    }
+                }
+                return;
+            }
+
+            // Reading Mode Gestures
+            if (!state.isReading) return;
+
+            if (fist) {
+                if (!state.isPaused) {
+                    state.isPaused = true;
+                    gestureGuide.classList.remove('hidden');
+                    hintPause.classList.add('active');
+                    handCursor.classList.add('active');
+                    updateProgressRing(hintPause.querySelector('.gesture-icon'), 0);
+                }
+                return;
+            } else if (state.isPaused) {
+                state.isPaused = false;
+                hintPause.classList.remove('active');
+                handCursor.classList.remove('active');
+                updateProgressRing(hintPause.querySelector('.gesture-icon'), 0);
+            }
+
+            // Navigation
+            if (x < CONFIG.zoneLeft) {
+                if (state.currentZone !== 'right') {
+                    state.currentZone = 'right';
+                    state.zoneStartTime = Date.now();
+                    hintNext.classList.add('active');
+                    hintPrev.classList.remove('active');
+                } else {
+                    const elapsed = Date.now() - state.zoneStartTime;
+                    const progress = Math.min(elapsed / CONFIG.holdTime, 1);
+                    updateProgressRing(hintNext.querySelector('.gesture-icon'), progress);
+
+                    if (elapsed > CONFIG.holdTime) {
+                        goToNextPage();
+                        state.zoneStartTime = Date.now();
+                    }
+                }
+            } else if (x > CONFIG.zoneRight) {
+                if (state.currentZone !== 'left') {
+                    state.currentZone = 'left';
+                    state.zoneStartTime = Date.now();
+                    hintPrev.classList.add('active');
+                    hintNext.classList.remove('active');
+                } else {
+                    const elapsed = Date.now() - state.zoneStartTime;
+                    const progress = Math.min(elapsed / CONFIG.holdTime, 1);
+                    updateProgressRing(hintPrev.querySelector('.gesture-icon'), progress);
+
+                    if (elapsed > CONFIG.holdTime) {
+                        goToPrevPage();
+                        state.zoneStartTime = Date.now();
+                    }
+                }
+            } else {
+                state.currentZone = null;
+                hintPrev.classList.remove('active');
+                hintNext.classList.remove('active');
+                updateProgressRing(hintPrev.querySelector('.gesture-icon'), 0);
+                updateProgressRing(hintNext.querySelector('.gesture-icon'), 0);
+            }
+        }
+
+        function updateProgressRing(icon, progress) {
+            if (!icon) return;
+            const percentage = Math.round(progress * 100);
+            icon.style.setProperty('--progress-pct', percentage + '%');
+        }
+
+        // MediaPipe Setup
+        async function setupCamera() {
+            const videoElement = document.getElementById('webcam-preview');
+
+            const hands = new Hands({locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }});
+
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.7,
+                minTrackingConfidence: 0.7
+            });
+
+            hands.onResults((results) => {
+                if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                    if (!state.handDetected) {
+                        state.handDetected = true;
+                        startBtn.textContent = '开始阅读';
+                    }
+                    handleGesture(results.multiHandLandmarks[0]);
+                } else {
+                    handCursor.style.display = 'none';
+                    hintPrev.classList.remove('active');
+                    hintNext.classList.remove('active');
+                    hintPause.classList.remove('active');
+                    state.currentZone = null;
+                }
+            });
+
+            const camera = new Camera(videoElement, {
+                onFrame: async () => {
+                    await hands.send({image: videoElement});
+                },
+                width: 320,
+                height: 240
+            });
+
+            return camera;
+        }
+
+        // Auto-scan known book folders
+        async function autoScanBooks() {
+            const possibleBooks = [
+                '暗室显影',
+                '赛博迷梦：零号数据'
+            ];
+
+            for (const bookName of possibleBooks) {
+                if (state.books.find(b => b.name === bookName)) continue;
+
+                const testUrl = CONFIG.booksBasePath + bookName + '/1.png';
+                const exists = await checkImageExists(testUrl);
+
+                if (exists) {
+                    let pageCount = 0;
+                    for (let i = 1; i <= 200; i++) {
+                        const url = CONFIG.booksBasePath + bookName + '/' + i + '.png';
+                        const pageExists = await checkImageExists(url);
+                        if (pageExists) {
+                            pageCount++;
+                        } else if (pageCount > 0) {
+                            break;
+                        } else if (i > 10) {
+                            break;
+                        }
+                    }
+
+                    state.books.push({
+                        name: bookName,
+                        path: CONFIG.booksBasePath + bookName + '/',
+                        cover: testUrl,
+                        pageCount: pageCount
+                    });
+                }
+            }
+        }
+
+        // Initialize
+        async function init() {
+            initBackground();
+
+            await autoScanBooks();
+            renderBookList(state.books);
+
+            hideLoading();
+
+            try {
+                const camera = await setupCamera();
+                await camera.start();
+                state.cameraReady = true;
+            } catch (e) {
+                console.error('Camera error:', e);
+            }
+        }
+
+        // Start Reading
+        async function startReading() {
+            if (!state.selectedBook) return;
+
+            startOverlay.classList.add('hidden');
+
+            loadingScreen.classList.remove('hidden');
+            loadingStatus.textContent = '0%';
+
+            await loadImages();
+
+            if (!state.isLoaded) {
+                alert('加载漫画失败');
+                startOverlay.classList.remove('hidden');
+                return;
+            }
+
+            bookTitleEl.textContent = state.selectedBook.name;
+
+            state.isReading = true;
+            gestureGuide.classList.remove('hidden');
+            updatePages();
+        }
+
+        // Back to book selection
+        function backToSelection() {
+            state.isReading = false;
+            state.isPaused = false;
+            state.currentIndex = 0;
+            state.images = [];
+            state.isLoaded = false;
+
+            startOverlay.classList.remove('hidden');
+            gestureGuide.classList.add('hidden');
+
+            hintPrev.classList.remove('active');
+            hintNext.classList.remove('active');
+            hintPause.classList.remove('active');
+        }
+
+        // Event Listeners
+        startBtn.addEventListener('click', startReading);
+        backBtn.addEventListener('click', backToSelection);
+
+        toggleSwitch.addEventListener('click', () => {
+            toggleSwitch.classList.toggle('active');
+            webcamPreview.classList.toggle('visible');
+        });
+
+        // Keyboard fallback
+        document.addEventListener('keydown', (e) => {
+            if (!state.isReading) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    startReading();
+                }
+                return;
+            }
+
+            if (e.key === 'ArrowLeft') goToPrevPage();
+            if (e.key === 'ArrowRight') goToNextPage();
+            if (e.key === 'Escape') backToSelection();
+        });
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
