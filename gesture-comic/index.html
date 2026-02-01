@@ -1288,7 +1288,7 @@
                     </div>
                     <div class="book-info">
                         <h3>${book.name}</h3>
-                        <p>${book.pageCount} 页</p>
+                        <p>${book.counting ? '加载中...' : (book.pageCount + ' 页')}</p>
                     </div>
                 </div>
             `).join('');
@@ -1692,26 +1692,41 @@
             return camera;
         }
 
-        // Auto-scan known book folders
+        // Auto-scan known book folders - optimized for large images
         async function autoScanBooks() {
             const possibleBooks = [
                 '暗室显影',
                 '赛博迷梦：零号数据'
             ];
 
+            // Phase 1: Quickly detect books by checking only the first page
             for (const bookName of possibleBooks) {
                 if (state.books.find(b => b.name === bookName)) continue;
 
                 const testUrl = CONFIG.booksBasePath + bookName + '/1.png';
-                const exists = await checkImageExists(testUrl);
+                const exists = await checkImageExists(testUrl, 2000);
 
                 if (exists) {
+                    // Add book with unknown page count initially
+                    state.books.push({
+                        name: bookName,
+                        path: CONFIG.booksBasePath + bookName + '/',
+                        cover: testUrl,
+                        pageCount: 0,  // Will be updated in background
+                        counting: true
+                    });
+                }
+            }
+
+            // Phase 2: Count pages in background without blocking UI
+            setTimeout(async () => {
+                for (const book of state.books) {
+                    if (book.pageCount > 0 || !book.counting) continue;
+
                     let pageCount = 0;
-                    // Reduced max pages from 200 to 50 for faster scanning
                     for (let i = 1; i <= 50; i++) {
-                        const url = CONFIG.booksBasePath + bookName + '/' + i + '.png';
-                        // Use shorter timeout for page counting (1 second)
-                        const pageExists = await checkImageExists(url, 1000);
+                        const url = book.path + i + '.png';
+                        const pageExists = await checkImageExists(url, 1500);
                         if (pageExists) {
                             pageCount++;
                         } else if (pageCount > 0) {
@@ -1721,25 +1736,27 @@
                         }
                     }
 
-                    state.books.push({
-                        name: bookName,
-                        path: CONFIG.booksBasePath + bookName + '/',
-                        cover: testUrl,
-                        pageCount: pageCount
-                    });
+                    book.pageCount = pageCount;
+                    book.counting = false;
+                    renderBookList(state.books);  // Update UI with actual page count
                 }
-            }
+            }, 100);
         }
 
         // Initialize
         async function init() {
             initBackground();
 
+            // Quickly scan for books
             await autoScanBooks();
+
+            // Render books immediately (even with 0 pages shown)
             renderBookList(state.books);
 
+            // Hide loading screen right away
             hideLoading();
 
+            // Setup camera in background
             try {
                 const camera = await setupCamera();
                 await camera.start();
