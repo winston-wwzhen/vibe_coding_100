@@ -1246,14 +1246,31 @@
             renderBookList(state.books);
         };
 
-        // Check if image exists
+        // Check if image exists with longer timeout for GitHub Pages
         function checkImageExists(url) {
             return new Promise((resolve) => {
                 const img = new Image();
-                img.onload = () => resolve(true);
-                img.onerror = () => resolve(false);
+                let resolved = false;
+                img.onload = () => {
+                    if (!resolved) {
+                        resolved = true;
+                        resolve(true);
+                    }
+                };
+                img.onerror = () => {
+                    if (!resolved) {
+                        resolved = true;
+                        resolve(false);
+                    }
+                };
                 img.src = url;
-                setTimeout(() => resolve(false), 1000);
+                // Increase timeout to 5 seconds for GitHub Pages
+                setTimeout(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        resolve(false);
+                    }
+                }, 5000);
             });
         }
 
