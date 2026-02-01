@@ -1246,8 +1246,8 @@
             renderBookList(state.books);
         };
 
-        // Check if image exists with longer timeout for GitHub Pages
-        function checkImageExists(url) {
+        // Check if image exists with optimized timeout
+        function checkImageExists(url, timeout = 2000) {
             return new Promise((resolve) => {
                 const img = new Image();
                 let resolved = false;
@@ -1264,13 +1264,12 @@
                     }
                 };
                 img.src = url;
-                // Increase timeout to 5 seconds for GitHub Pages
                 setTimeout(() => {
                     if (!resolved) {
                         resolved = true;
                         resolve(false);
                     }
-                }, 5000);
+                }, timeout);
             });
         }
 
@@ -1708,9 +1707,11 @@
 
                 if (exists) {
                     let pageCount = 0;
-                    for (let i = 1; i <= 200; i++) {
+                    // Reduced max pages from 200 to 50 for faster scanning
+                    for (let i = 1; i <= 50; i++) {
                         const url = CONFIG.booksBasePath + bookName + '/' + i + '.png';
-                        const pageExists = await checkImageExists(url);
+                        // Use shorter timeout for page counting (1 second)
+                        const pageExists = await checkImageExists(url, 1000);
                         if (pageExists) {
                             pageCount++;
                         } else if (pageCount > 0) {
