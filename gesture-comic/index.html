@@ -1187,11 +1187,11 @@
             const folderName = bookInput.value.trim();
             if (!folderName) return;
 
-            const testUrl = CONFIG.booksBasePath + folderName + '/1.png';
+            const testUrl = CONFIG.booksBasePath + folderName + '/1.jpg';
             const exists = await checkImageExists(testUrl);
 
             if (!exists) {
-                alert(`未找到漫画文件夹: ${folderName}\n请确保该文件夹存在于 books 目录下，并且包含 1.png 文件`);
+                alert(`未找到漫画文件夹: ${folderName}\n请确保该文件夹存在于 books 目录下，并且包含 1.jpg 文件`);
                 return;
             }
 
@@ -1202,7 +1202,7 @@
 
             let pageCount = 0;
             for (let i = 1; i <= 200; i++) {
-                const url = CONFIG.booksBasePath + folderName + '/' + i + '.png';
+                const url = CONFIG.booksBasePath + folderName + '/' + i + '.jpg';
                 const pageExists = await checkImageExists(url);
                 if (pageExists) {
                     pageCount++;
@@ -1288,7 +1288,7 @@
                     </div>
                     <div class="book-info">
                         <h3>${book.name}</h3>
-                        <p>${book.counting ? '加载中...' : (book.pageCount + ' 页')}</p>
+                        <p>${book.pageCount === null ? '点击阅读' : (book.pageCount + ' 页')}</p>
                     </div>
                 </div>
             `).join('');
@@ -1312,41 +1312,58 @@
         async function loadImages() {
             if (!state.selectedBook) return;
 
-            const maxImages = 200;
-            let loaded = 0;
-            let failed = 0;
+            const maxImages = 100;  // Reduced from 200
             const basePath = state.selectedBook.path;
+            const batchSize = 10;  // Load 10 images concurrently
+            let foundAny = false;
+            let consecutiveFailures = 0;
 
-            for (let i = 1; i <= maxImages; i++) {
-                const img = new Image();
-                const url = basePath + i + '.png';
+            for (let batchStart = 1; batchStart <= maxImages; batchStart += batchSize) {
+                const batchEnd = Math.min(batchStart + batchSize - 1, maxImages);
+                const promises = [];
 
-                const promise = new Promise((resolve) => {
-                    img.onload = () => {
-                        state.images.push(url);
-                        loaded++;
-                        updateProgress(loaded + failed, i);
-                        resolve(true);
-                    };
-                    img.onerror = () => {
-                        failed++;
-                        if (failed > 5 && loaded === 0) {
-                            resolve(false);
-                        } else if (failed > 3 && loaded > 0) {
-                            resolve(false);
-                        } else {
+                for (let i = batchStart; i <= batchEnd; i++) {
+                    const url = basePath + i + '.jpg';
+                    const promise = new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            state.images.push(url);
+                            consecutiveFailures = 0;
                             resolve(true);
-                        }
-                    };
-                    img.src = url;
-                });
+                        };
+                        img.onerror = () => {
+                            consecutiveFailures++;
+                            resolve(false);
+                        };
+                        img.src = url;
+                    });
+                    promises.push(promise);
+                }
 
-                const shouldContinue = await promise;
-                if (!shouldContinue) break;
+                // Wait for entire batch
+                await Promise.all(promises);
+
+                // Update progress
+                const progress = Math.min(100, Math.round((batchEnd / maxImages) * 100));
+                loadingStatus.textContent = progress + '%';
+
+                // Stop if we found at least one image and now have consecutive failures
+                if (state.images.length > 0 && consecutiveFailures >= batchSize) {
+                    break;
+                }
+
+                // Stop if we haven't found any images after checking enough
+                if (state.images.length === 0 && batchStart >= 20) {
+                    break;
+                }
             }
+
+            // Sort images by page number
+            state.images.sort();
 
             if (state.images.length > 0) {
                 state.isLoaded = true;
+                state.selectedBook.pageCount = state.images.length;
                 totalPagesSpan.textContent = state.images.length;
                 hideLoading();
             } else {
@@ -1692,65 +1709,40 @@
             return camera;
         }
 
-        // Auto-scan known book folders - optimized for large images
+        // Auto-scan known book folders - lazy loading, no page counting
         async function autoScanBooks() {
             const possibleBooks = [
                 '暗室显影',
                 '赛博迷梦：零号数据'
             ];
 
-            // Phase 1: Quickly detect books by checking only the first page
+            // Quickly detect books by checking only the first page
             for (const bookName of possibleBooks) {
                 if (state.books.find(b => b.name === bookName)) continue;
 
-                const testUrl = CONFIG.booksBasePath + bookName + '/1.png';
-                const exists = await checkImageExists(testUrl, 2000);
+                const testUrl = CONFIG.booksBasePath + bookName + '/1.jpg';
+                const exists = await checkImageExists(testUrl, 1000);
 
                 if (exists) {
-                    // Add book with unknown page count initially
+                    // Add book without page count - will load on demand
                     state.books.push({
                         name: bookName,
                         path: CONFIG.booksBasePath + bookName + '/',
                         cover: testUrl,
-                        pageCount: 0,  // Will be updated in background
-                        counting: true
+                        pageCount: null  // Unknown until user selects book
                     });
                 }
             }
-
-            // Phase 2: Count pages in background without blocking UI
-            setTimeout(async () => {
-                for (const book of state.books) {
-                    if (book.pageCount > 0 || !book.counting) continue;
-
-                    let pageCount = 0;
-                    for (let i = 1; i <= 50; i++) {
-                        const url = book.path + i + '.png';
-                        const pageExists = await checkImageExists(url, 1500);
-                        if (pageExists) {
-                            pageCount++;
-                        } else if (pageCount > 0) {
-                            break;
-                        } else if (i > 10) {
-                            break;
-                        }
-                    }
-
-                    book.pageCount = pageCount;
-                    book.counting = false;
-                    renderBookList(state.books);  // Update UI with actual page count
-                }
-            }, 100);
         }
 
         // Initialize
         async function init() {
             initBackground();
 
-            // Quickly scan for books
+            // Quickly scan for books (no page counting)
             await autoScanBooks();
 
-            // Render books immediately (even with 0 pages shown)
+            // Render books immediately
             renderBookList(state.books);
 
             // Hide loading screen right away
